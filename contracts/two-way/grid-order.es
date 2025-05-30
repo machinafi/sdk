@@ -1,18 +1,27 @@
 {
+  // [ Description ]
+  //  This contract enables a two-way grid order trading strategy, allowing users to create 
+  //  grid orders for buying and selling a specific token at predefined prices while supporting 
+  //  auto-compounding to trade all available amounts when limits are set to zero, allowing 
+  //  token exchanges with ERG in either direction.
+  //
+  //
   // [ Registers ]
-  //   R4: SigmaProp        - Owner script
-  //   R5: Coll[Long]       - [buy, sell] prices in nanoergs
-  //   R6: Coll[Long]       - [token limit, erg limit], the maximum amount of the asset units to be traded
-  //                          - If it's set to zero, the order will be auto compounded, which means that all 
-  //                            the amounts contained in the box can be traded
-  //                          - If it's is greater than zero, the order will accumulate the corresponding 
-  //                            asset by limiting the amount of the corresponding asset that can be traded
+  //   R4: SigmaProp         - Owner script
+  //   R5: Coll[Long]        - [buy, sell] prices in nanoergs
+  //   R6: Coll[Long]        - [buy, sell] limits in token units
+  //                           - If it's set to zero, the order will be auto-compounded, which 
+  //                             means that all the amounts contained in the box can be traded
+  //                           - If it's is greater than zero, the order will accumulate assets
+  //                             by limiting the amount exchanged amounts
   //   R7: Coll[Byte]        - Spent input ID
-   
+  //
+  //
   // [ Context variables ]
   //   0: Boolean            - Action, true == buy, false = sell
   //   1: Int                - Recreated output index
-
+  //
+  //
   // [ Expected actions ]
   //   - Buy
   //   - Sell

@@ -1,4 +1,4 @@
-{ // 248
+{
   // [ Registers ]
   //   R4: SigmaProp        - Owner script
   //   R5: Coll[Long]       - [buy, sell] prices in nanoergs

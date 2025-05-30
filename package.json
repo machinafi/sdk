@@ -1,6 +1,6 @@
 {
   "name": "gridz",
-  "module": "index.ts",
+  "module": "src/index.ts",
   "type": "module",
   "private": true,
   "scripts": {
@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@fleet-sdk/common": "^0.9.1",
-    "@fleet-sdk/compiler": "^0.9.1",
     "@fleet-sdk/core": "^0.9.1",
+    "@fleet-sdk/compiler": "^0.9.1",
     "@fleet-sdk/mock-chain": "^0.9.1"
   }
 }

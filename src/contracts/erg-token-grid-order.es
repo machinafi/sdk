@@ -53,7 +53,8 @@
       childBox.R5[Coll[Long]].get == prices,               // 3. preserve prices
       childBox.R6[Coll[Long]].get == limits,               // 4. preserve limits
       childBox.R7[Coll[Byte]].get == SELF.id               // 5. bind the child box to the parent
-
+    ));
+    
     val validExchange = if (buying) {
       // user BUYS tokens with nanoergs (nanoergs IN, tokens OUT)
 
@@ -63,7 +64,7 @@
 
       val nanoergsIn = childBox.value - SELF.value;     // nanoergs received from the buyer
       val tokensOut = selfToken._2 - childTokenAmount;  // tokens paid out to the buyer
-      val requiredNanoergs = tokensOut * price;         // the required nanoergs to cover the token price
+      val requiredNanoergs = tokensOut * price;         // nanoergs covering the token price
 
       val validToken = selfToken._2 == tokensOut || childBox.tokens(T)._1 == tokenId;
       allOf(Coll(                        // should be true if:
@@ -80,7 +81,7 @@
 
       val nanoergsOut = SELF.value - childBox.value;        // nanoergs paid out to the seller
       val tokensIn = childBox.tokens(T)._2 - selfToken._2;  // tokens received from the seller
-      val minPayout = tokensIn * price;                     // the minimum amount of nanoergs to pay out
+      val minPayout = tokensIn * price;                     // nanoergs covering the token price
 
       allOf(Coll(                         // should be true if:
         nanoergsOut > 0L,                 // 1. the nanoergs difference is positive

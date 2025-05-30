@@ -1,35 +1,34 @@
 {
-  // [ Description ]
-  // This is an optionally auto-compounding two-way grid order trading contract for ERG and TOKEN.
-  // Allowing users to create grid orders for buying and selling tokens at the same time at predefined 
-  // prices [R5], while supporting auto-compounding to trade all available amounts when limits [R6] are 
-  // set to zero. This contract also allows the owner to cancel the order (withdraw funds) at any time.
-  //
-  //
-  // [ Registers ]
-  //   R4: SigmaProp         - Owner script
-  //   R5: Coll[Long]        - [buy, sell] prices in nanoergs
-  //   R6: Coll[Long]        - [buy, sell] limits in token units
-  //                           - If it's set to zero, the order will be auto-compounded, which 
-  //                             means that all the amounts contained in the box can be traded
-  //                           - If it's is greater than zero, the order will accumulate assets
-  //                             by limiting the amount exchanged amounts
-  //   R7: Coll[Byte]        - Spent input ID
-  //
-  //
-  // [ Context variables ]
-  //   0: Boolean            - Action, true == buy, false = sell
-  //   1: Int                - Recreated output index
-  //
-  //
-  // [ Expected actions ]
-  //   - Buy
-  //   - Sell
-  //   - Cancel the order
-
+  /**
+  * [[ Description ]]
+  * This is an optionally auto-compounding two-way grid order contract for ERG and TOKEN, Allowing 
+  * users to create grid orders for buying and selling tokens at the same time at predefined prices, 
+  * while supporting auto-compounding to trade all available amounts when limits are set to zero. 
+  * This contract also allows the owner to cancel the order (withdraw funds) at any time.
+  *
+  * [[ Registers ]]
+  * R4: SigmaProp         - Owner script
+  * R5: Coll[Long]        - [buy, sell] prices in nanoergs
+  * R6: Coll[Long]        - [buy, sell] limits in token units
+  *                         - If it's set to zero, the order will be auto-compounded, which means
+  *                           that all the amounts contained in the box can be traded
+  *                         - If it's is greater than zero, the order will accumulate assets by 
+  *                           limiting the amount exchanged amounts
+  * R7: Coll[Byte]        - Spent input ID
+  *
+  * [[ Context variables ]]
+  * 0: Boolean            - Action, true == buy, false = sell
+  * 1: Int                - Recreated output index
+  *
+  * [[ Expected actions ]]
+  * Buy
+  * Sell
+  * Cancel
+  */
+  
   // indexes
-  val T = 0;     // token index
-  val BUY = 0;   // buy price and limit index
+  val T    = 0;  // token index
+  val BUY  = 0;  // buy price and limit index
   val SELL = 1;  // sell price and limit index
 
   // placeholder, replace with actual token ID
@@ -69,7 +68,6 @@
       val requiredNanoergs = tokensOut * price;         // the required nanoergs to cover the token price
 
       val validToken = selfToken._2 == tokensOut || childBox.tokens(T)._1 == tokenId;
-
       allOf(Coll(                        // should be true if:
         nanoergsIn > 0L,                 // 1. the nanoergs difference is positive
         nanoergsIn >= requiredNanoergs,  // 2. the nanoergs paid are enough to cover the token price

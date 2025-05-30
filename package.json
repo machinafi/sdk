@@ -4,15 +4,19 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "bun test"
+    "test": "bun test --watch"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
-    "@fleet-sdk/compiler": "^0.8.5"
+    "@fleet-sdk/common": "^0.9.1",
+    "@fleet-sdk/compiler": "^0.9.1",
+    "@fleet-sdk/core": "^0.9.1",
+    "@fleet-sdk/mock-chain": "^0.9.1"
   }
 }

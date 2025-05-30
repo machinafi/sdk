@@ -19,10 +19,7 @@ const ONE_ERG = 1_000_000_000n; // 1 erg = 1 billion nanoergs
 
 const token = (amount: bigint): TokenAmount<bigint> => ({ tokenId: DEFAULT_TOKEN_ID, amount });
 
-/**
- *
- */
-describe("contract loading", () => {
+describe("ERG <-> Token grid order", () => {
   const tree = compile(script);
 
   const chain = new MockChain(849_741);
@@ -35,15 +32,15 @@ describe("contract loading", () => {
 
   afterEach(() => chain.reset());
 
-  it("should cancel order", () => {
+  it("Should cancel order", () => {
     // arrange
     contract.addUTxOs(
       newOrder({
         nanoergs: ONE_ERG,
         tokens: 100n,
         owner: bob,
-        max: { buy: 0n, sell: 0n },
-        price: { buy: 0n, sell: 0n }
+        price: { buy: 0n, sell: 0n },
+        max: { buy: 0n, sell: 0n }
       })
     );
 
@@ -62,16 +59,10 @@ describe("contract loading", () => {
     expect(contract.balance).toEqual({ nanoergs: 0n, tokens: [] });
   });
 
-  it("should not withdrawal funds to someone else", () => {
+  it("Should not allow canceling order if not owner", () => {
     // arrange
     contract.addUTxOs(
-      newOrder({
-        nanoergs: ONE_ERG,
-        tokens: 100n,
-        owner: bob,
-        max: { buy: 0n, sell: 0n },
-        price: { buy: 0n, sell: 0n }
-      })
+      newOrder({ owner: bob, price: { buy: 0n, sell: 0n }, max: { buy: 0n, sell: 0n } })
     );
 
     expect(contract.utxos.length).toBe(1);

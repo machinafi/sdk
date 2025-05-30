@@ -48,14 +48,14 @@
     val selfToken = SELF.tokens(T);
     val childBox = OUTPUTS(childBoxIndex.get);
 
-    val validRecreation = allOf(Coll(                        // should be true if:
-        childBox.propositionBytes == SELF.propositionBytes,  // 1. preserve proposition
-        childBox.R4[SigmaProp].get == owner,                 // 2. preserve owner script
-        childBox.R5[Coll[Long]].get == prices,               // 3. preserve prices
-        childBox.R6[Coll[Long]].get == limits,               // 4. preserve limits
-        childBox.R7[Coll[Byte]].get == SELF.id               // 5. bind the child box to the parent to
-      )                                                      //    prevent spending multiple inputs with
-    );                                                       //    a single output
+    val validRecreation = allOf(Coll(                      // should be true if:
+      childBox.propositionBytes == SELF.propositionBytes,  // 1. preserve proposition
+      childBox.R4[SigmaProp].get == owner,                 // 2. preserve owner script
+      childBox.R5[Coll[Long]].get == prices,               // 3. preserve prices
+      childBox.R6[Coll[Long]].get == limits,               // 4. preserve limits
+      childBox.R7[Coll[Byte]].get == SELF.id               // 5. bind the child box to the parent to
+    ));                                                    //    prevent spending multiple inputs with
+                                                           //    a single output
 
     val validExchange = if (buying) {
       // user BUYS tokens with nanoergs (nanoergs IN, tokens OUT)
@@ -70,13 +70,12 @@
 
       val validToken = selfToken._2 == tokensOut || childBox.tokens(T)._1 == tokenId;
 
-      allOf(Coll(                          // should be true if:
-          nanoergsIn > 0L,                 // 1. the nanoergs difference is positive
-          nanoergsIn >= requiredNanoergs,  // 2. the nanoergs paid are enough to cover the token price
-          limit >= tokensOut,              // 3. the token amount is within the limit
-          validToken                       // 4. the token ID is valid, if there is token change
-        )
-      )
+      allOf(Coll(                        // should be true if:
+        nanoergsIn > 0L,                 // 1. the nanoergs difference is positive
+        nanoergsIn >= requiredNanoergs,  // 2. the nanoergs paid are enough to cover the token price
+        limit >= tokensOut,              // 3. the token amount is within the limit
+        validToken                       // 4. the token ID is valid, if there is token change
+      ))
     } else {
       // user SELLS tokens for nanoergs (tokens IN, nanoergs OUT)
 
@@ -87,13 +86,12 @@
       val tokensIn = childBox.tokens(T)._2 - selfToken._2;  // tokens received from the seller
       val minPayout = tokensIn * price;                     // the minimum amount of nanoergs to pay out
 
-      allOf(Coll(                           // should be true if:
-          nanoergsOut > 0L,                 // 1. the nanoergs difference is positive
-          minPayout >= nanoergsOut,         // 2. the tokens paid are enough to cover the nanoergs out
-          limit >= tokensIn,                // 3. the token amount is within the limit
-          childBox.tokens(T)._1 == tokenId  // 4. the token ID is valid
-        )
-      )
+      allOf(Coll(                         // should be true if:
+        nanoergsOut > 0L,                 // 1. the nanoergs difference is positive
+        minPayout >= nanoergsOut,         // 2. the tokens paid are enough to cover the nanoergs out
+        limit >= tokensIn,                // 3. the token amount is within the limit
+        childBox.tokens(T)._1 == tokenId  // 4. the token ID is valid
+      ))
     }
 
     sigmaProp(validRecreation && validExchange)

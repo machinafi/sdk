@@ -24,7 +24,7 @@ const token = (amount: bigint): TokenAmount<bigint> => ({ tokenId: DEFAULT_TOKEN
 describe("ERG <-> Token grid order", () => {
   const tree = compile(script);
 
-  const chain = new MockChain(849_741);
+  const chain = new MockChain();
 
   const bob = chain.newParty("Bob");
   const alice = chain.newParty("Alice");

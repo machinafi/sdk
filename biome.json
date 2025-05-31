@@ -1,13 +1,7 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "ignore": [
-      "**/dist/*",
-      "**/bin/*",
-      "**/node_modules/*",
-      "**/package.json",
-      "**/*.es"
-    ]
+    "ignore": ["**/dist/*", "**/bin/*", "**/node_modules/*", "**/*.es"]
   },
   "organizeImports": {
     "enabled": true

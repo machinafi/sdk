@@ -46,7 +46,6 @@ export class GridOrder {
 
   static validateBox<T extends string | bigint>(box: Box<T>): box is Box<T, R4ToR6Registers> {
     // todo: validate contract
-
     if (!box.additionalRegisters.R4) return false;
     if (!box.additionalRegisters.R5) return false;
     if (!box.additionalRegisters.R6) return false;

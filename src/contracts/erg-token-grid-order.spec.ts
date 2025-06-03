@@ -2,7 +2,8 @@ import { compile } from "@fleet-sdk/compiler";
 import { SAFE_MIN_BOX_VALUE, TransactionBuilder, type TokenAmount } from "@fleet-sdk/core";
 import { type KeyedMockChainParty, MockChain, mockUTxO } from "@fleet-sdk/mock-chain";
 import { afterEach, describe, expect, it } from "bun:test";
-import { GridOrder, type PriceRange } from "../grid-order";
+import { GRID_CONTRACT, GridOrder, type PriceRange } from "../grid-order";
+import { first } from "@fleet-sdk/common";
 
 const r = (filename: string) => `./src/contracts/${filename}`;
 const script = await Bun.file(r("erg-token-grid-order.es")).text();
@@ -13,12 +14,13 @@ const ONE_ERG = 1_000_000_000n; // 1 erg = 1 billion nanoergs
 const token = (amount: bigint): TokenAmount<bigint> => ({ tokenId: DEFAULT_TOKEN_ID, amount });
 
 describe("ERG <-> Token grid order", () => {
-  const tree = compile(script);
+  const tree = process.env.RECOMPILE === "true" ? compile(script).toHex() : GRID_CONTRACT;
   const chain = new MockChain();
 
   const bob = chain.newParty("Bob");
   const alice = chain.newParty("Alice");
-  const contract = chain.addParty(tree.toHex(), "Grid contract");
+  const contract = chain.addParty(tree, "Grid contract");
+  console.log(process.env.RECOMPILE);
 
   const mockOrderBox = orderBuilder(contract.ergoTree, DEFAULT_TOKEN_ID);
 
@@ -46,6 +48,47 @@ describe("ERG <-> Token grid order", () => {
     expect(contract.utxos.length).toBe(0);
     expect(bob.balance).toEqual({ nanoergs: ONE_ERG, tokens: [token(100n)] });
     expect(contract.balance).toEqual({ nanoergs: 0n, tokens: [] });
+  });
+
+  it("Should partially buy tokens", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
+    const order = new GridOrder(
+      mockOrderBox({
+        owner: bob,
+        assets: { tokens: 100n },
+        prices // buy at 5 nanoergs per token, sell at 10 nanoergs per token
+      })
+    );
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG });
+
+    const BUY_AMOUNT = 10n; // buying 10 tokens
+    const PAY_AMOUNT = BUY_AMOUNT * prices.buy; // 10 * 5 = 50 nanoergs
+
+    const transaction = new TransactionBuilder(chain.height)
+      .from(alice.utxos)
+      .extend(order.buy(BUY_AMOUNT)) // buying 10 tokens
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    const success = chain.execute(transaction, { signers: [alice] });
+
+    // assert
+    expect(success).toBe(true);
+
+    expect(contract.utxos.length).toBe(1);
+    expect(contract.balance).toStrictEqual({
+      nanoergs: order.box.value + PAY_AMOUNT, // 1_000_000_000 + 50 = 1_000_000_050 nanoergs in the contract
+      tokens: [token(first(order.box.assets).amount - BUY_AMOUNT)] // 100 - 10 = 90 tokens left in the order
+    });
+
+    expect(alice.balance).toStrictEqual({
+      nanoergs: ONE_ERG - PAY_AMOUNT, // 1_000_000_000 - 50 = 999_999_950 nanoergs left
+      tokens: [token(BUY_AMOUNT)] // 10 tokens bought
+    });
   });
 
   it("Should not allow canceling order if not owner", () => {
@@ -82,7 +125,7 @@ function orderBuilder(ergoTree: string, tokenId: string) {
       max: p.max,
       owner: p.owner.address
     })
-      .setCreationHeight(0)
+      .setCreationHeight(1)
       .build();
 
     return mockUTxO({

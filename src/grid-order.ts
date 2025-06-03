@@ -5,13 +5,23 @@ import {
   type Box,
   type TokenAmount
 } from "@fleet-sdk/common";
-import { SColl, SConstant, SGroupElement, SLong, SSigmaProp } from "@fleet-sdk/serializer";
+import {
+  SBool,
+  SByte,
+  SColl,
+  SConstant,
+  SGroupElement,
+  SInt,
+  SLong,
+  SSigmaProp
+} from "@fleet-sdk/serializer";
 import {
   type ErgoAddress,
   OutputBuilder,
   type FleetPlugin,
   type R4ToR6Registers,
-  estimateMinBoxValue
+  estimateMinBoxValue,
+  ErgoUnsignedInput
 } from "@fleet-sdk/core";
 import type { BuyOrder, SellOrder } from "./types";
 
@@ -21,7 +31,7 @@ export const GRID_CONTRACT =
 export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
   #box: Box<bigint, R4ToR6Registers>;
 
-  #prices: PriceRange;
+  #price: PriceRange;
   #limits: PriceRange;
 
   constructor(box: Box<Amount>) {
@@ -32,13 +42,13 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
     const [buyPrice, sellPrice] = SConstant.from<[bigint, bigint]>(r5).data;
     const [buyMax, sellMax] = SConstant.from<[bigint, bigint]>(r6).data;
 
-    this.#prices = { buy: buyPrice, sell: sellPrice };
+    this.#price = { buy: buyPrice, sell: sellPrice };
     this.#limits = { buy: buyMax, sell: sellMax };
     this.#box = ensureUTxOBigInt(box) as Box<bigint, R4ToR6Registers>;
   }
 
   get price(): PriceRange {
-    return this.#prices;
+    return this.#price;
   }
 
   get max(): PriceRange {
@@ -60,7 +70,26 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
   buy(amount: bigint): FleetPlugin {
     if (amount <= 0n) throw new Error("Amount must be greater than zero");
 
-    throw new Error("Buy operation is not implemented yet");
+    return ({ addInputs, addOutputs }) => {
+      const box = this.#box;
+      const requiredNanoergs = amount * this.#price.buy;
+
+      const outputsLength = addOutputs(
+        OutputBuilder.from(box)
+          .setValue(box.value + requiredNanoergs)
+          .addTokens([{ tokenId: first(this.#box.assets).tokenId, amount: amount * -1n }]) // fleets will deduct the amount
+          .setAdditionalRegisters({
+            R7: SColl(SByte, this.#box.boxId)
+          })
+      );
+
+      addInputs(
+        new ErgoUnsignedInput(box).setContextExtension({
+          "0": SBool(true), // action, true == buy
+          "1": SInt(outputsLength - 1) // recreated output index
+        })
+      );
+    };
   }
 
   /**

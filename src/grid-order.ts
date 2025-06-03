@@ -1,15 +1,24 @@
-import { ensureUTxOBigInt, type Amount, type Box } from "@fleet-sdk/common";
-import type { PriceRange } from "./types";
+import {
+  ensureUTxOBigInt,
+  first,
+  type Amount,
+  type Box,
+  type TokenAmount
+} from "@fleet-sdk/common";
 import { SColl, SConstant, SGroupElement, SLong, SSigmaProp } from "@fleet-sdk/serializer";
 import {
   type ErgoAddress,
   OutputBuilder,
-  SAFE_MIN_BOX_VALUE,
   type FleetPlugin,
-  type R4ToR6Registers
+  type R4ToR6Registers,
+  estimateMinBoxValue
 } from "@fleet-sdk/core";
+import type { BuyOrder, SellOrder } from "./types";
 
-export class GridOrder {
+const CONTRACT =
+  "19f1020f04000e20fbbaac7337d051c10fc3da0ccb864f4d32d40027551e1c3ea3ce361f39b91e400400040005000400050004000500040004000402050004020500d806d601e30104d602e4c6a70408d603db6308a7d604b27203730000d6058c720402d606730195e67201d805d607b2a5e4720100d608e4c6a70511d609e4c6a70611d60a7203d60b7204d1ed9683050193c27207c2a793e4c672070408720293e4c672070511720893e4c672070611720993e4c67207070ec5a795e4e30001d804d60c99c17207c1a7d60ddb63087207d60e9972059591b1720d73028cb2720d730300027304d60fb272097305009683040191720c730692720c9c720eb27208730700929591720f7308720f7205720eec937205720e938cb2720d730900017206d804d60c99c1a7c17207d60db2db63087207730a00d60e998c720d027205d60fb27209730b009683040191720c730c929c720eb27208730d00720c929591720f730e720f7205720e938c720d0172067202";
+
+export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
   #box: Box<bigint, R4ToR6Registers>;
 
   #prices: PriceRange;
@@ -44,67 +53,71 @@ export class GridOrder {
     return ({ addInputs }) => addInputs(this.#box);
   }
 
-  static validateBox<T extends string | bigint>(box: Box<T>): box is Box<T, R4ToR6Registers> {
-    // todo: validate contract
-    if (!box.additionalRegisters.R4) return false;
-    if (!box.additionalRegisters.R5) return false;
-    if (!box.additionalRegisters.R6) return false;
+  /**
+   * Buys tokens with nanoergs at the price specified in the order.
+   * @param amount - The amount of token units to buy.
+   */
+  buy(amount: bigint): FleetPlugin {
+    if (amount <= 0n) throw new Error("Amount must be greater than zero");
 
+    throw new Error("Buy operation is not implemented yet");
+  }
+
+  /**
+   * Sell tokens for nanoergs at the price specified in the order.
+   * @param amount - The amount of token units to sell.
+   */
+  sell(amount: bigint): FleetPlugin {
+    if (amount <= 0n) throw new Error("Amount must be greater than zero");
+
+    throw new Error("Sell operation is not implemented yet");
+  }
+
+  static create(options: OrderCreationParams) {
+    if (!options.assets?.nanoerg && !options.assets?.token.amount) {
+      throw new Error("At least one of base or target assets must be specified");
+    }
+
+    if (!options.prices.buy || !options.prices.sell) {
+      throw new Error("Prices must be specified for both buy and sell");
+    }
+
+    return new OutputBuilder(options.assets.nanoerg ?? estimateMinBoxValue(), CONTRACT)
+      .addTokens(options.assets.token)
+      .setAdditionalRegisters({
+        R4: SSigmaProp(SGroupElement(first(options.owner.getPublicKeys()))),
+        R5: SColl(SLong, [options.prices.buy, options.prices.sell]),
+        R6: SColl(SLong, [options.max?.buy ?? 0n, options.max?.sell ?? 0n])
+      });
+  }
+
+  static validateBox<T extends string | bigint>(box: Box<T>): box is Box<T, R4ToR6Registers> {
+    const registers = box.additionalRegisters;
+    const areRegistersPresent = registers.R4 && registers.R5 && registers.R6;
+
+    if (!areRegistersPresent) return false;
     return true;
   }
 }
 
 export interface ErgTokenAmounts {
-  nanoergs?: bigint;
-  tokens?: bigint;
+  nanoerg?: bigint;
+  token?: bigint;
 }
 
-export class GridOrderBuilder {
-  readonly tokenId: string;
-  readonly owner: ErgoAddress;
+export interface PriceRange {
+  buy: bigint;
+  sell: bigint;
+}
 
-  price?: PriceRange;
-  available?: ErgTokenAmounts;
+export interface ExchangeableAssets {
+  nanoerg: bigint;
+  token: TokenAmount<bigint>;
+}
+
+interface OrderCreationParams {
+  owner: ErgoAddress;
+  assets: ExchangeableAssets;
+  prices: PriceRange;
   max?: PriceRange;
-
-  constructor(owner: ErgoAddress, tokenId: string) {
-    this.owner = owner;
-    this.tokenId = tokenId;
-  }
-
-  get contract(): string {
-    return `01cafe${this.tokenId}`; // Example ErgoTree, replace with actual contract ErgoTree
-  }
-
-  exchange(amounts: ErgTokenAmounts): GridOrderBuilder {
-    this.available = amounts;
-    return this;
-  }
-
-  at(prices: PriceRange): GridOrderBuilder {
-    this.price = prices;
-    return this;
-  }
-
-  limitedTo(limits: PriceRange): GridOrderBuilder {
-    this.max = limits;
-    return this;
-  }
-
-  build(): OutputBuilder {
-    if (!this.available?.nanoergs && !this.available?.tokens) {
-      throw new Error("At least one of nanoergs or tokens must be specified");
-    }
-    if (!this.price?.buy || !this.price?.sell) {
-      throw new Error("Price must be specified for both buy and sell");
-    }
-
-    return new OutputBuilder(this.available.nanoergs ?? SAFE_MIN_BOX_VALUE, this.contract)
-      .addTokens({ tokenId: this.tokenId, amount: this.available.tokens ?? 0n })
-      .setAdditionalRegisters({
-        R4: SSigmaProp(SGroupElement(this.owner.getPublicKeys()[0] as Uint8Array)),
-        R5: SColl(SLong, [this.price.buy, this.price.sell]),
-        R6: SColl(SLong, [this.max?.buy ?? 0n, this.max?.sell ?? 0n])
-      });
-  }
 }

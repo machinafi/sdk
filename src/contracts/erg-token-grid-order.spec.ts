@@ -1,17 +1,8 @@
 import { compile } from "@fleet-sdk/compiler";
-import {
-  SAFE_MIN_BOX_VALUE,
-  SColl,
-  SGroupElement,
-  SLong,
-  SSigmaProp,
-  TransactionBuilder,
-  type TokenAmount
-} from "@fleet-sdk/core";
+import { SAFE_MIN_BOX_VALUE, TransactionBuilder, type TokenAmount } from "@fleet-sdk/core";
 import { type KeyedMockChainParty, MockChain, mockUTxO } from "@fleet-sdk/mock-chain";
 import { afterEach, describe, expect, it } from "bun:test";
-import type { PriceRange } from "../types";
-import { GridOrder } from "../grid-order";
+import { GridOrder, type PriceRange } from "../grid-order";
 
 const r = (filename: string) => `./src/contracts/${filename}`;
 const script = await Bun.file(r("erg-token-grid-order.es")).text();
@@ -23,7 +14,6 @@ const token = (amount: bigint): TokenAmount<bigint> => ({ tokenId: DEFAULT_TOKEN
 
 describe("ERG <-> Token grid order", () => {
   const tree = compile(script);
-
   const chain = new MockChain();
 
   const bob = chain.newParty("Bob");
@@ -39,9 +29,7 @@ describe("ERG <-> Token grid order", () => {
     const order = new GridOrder(
       mockOrderBox({
         owner: bob,
-        available: { nanoergs: ONE_ERG, tokens: 100n },
-        price: { buy: 0n, sell: 0n },
-        max: { buy: 0n, sell: 0n }
+        assets: { nanoergs: ONE_ERG, tokens: 100n }
       })
     );
 
@@ -62,7 +50,8 @@ describe("ERG <-> Token grid order", () => {
 
   it("Should not allow canceling order if not owner", () => {
     // arrange
-    const order = new GridOrder(mockOrderBox({ owner: bob, price: { buy: 0n, sell: 0n } }));
+    const order = new GridOrder(mockOrderBox({ owner: bob }));
+
     const transaction = new TransactionBuilder(chain.height)
       .extend(order.cancel())
       .sendChangeTo(alice.address) // sending change to Alice, but Bob is the owner
@@ -75,21 +64,30 @@ describe("ERG <-> Token grid order", () => {
 
 interface OrderParams {
   owner: KeyedMockChainParty;
-  available?: { nanoergs?: bigint; tokens?: bigint };
-  price: PriceRange;
+  assets?: { nanoergs?: bigint; tokens?: bigint };
+  prices?: PriceRange;
   max?: PriceRange;
 }
 
 function orderBuilder(ergoTree: string, tokenId: string) {
-  return (p: OrderParams) =>
-    mockUTxO({
-      ergoTree,
-      value: p.available?.nanoergs ?? SAFE_MIN_BOX_VALUE,
-      assets: p.available?.tokens ? [{ tokenId, amount: p.available.tokens }] : undefined,
-      additionalRegisters: {
-        R4: SSigmaProp(SGroupElement(p.owner.key.publicKey)).toHex(),
-        R5: SColl(SLong, [p.price.buy, p.price.sell]).toHex(),
-        R6: SColl(SLong, [p.max?.buy ?? 0n, p.max?.sell ?? 0n]).toHex()
-      }
+  return (p: OrderParams) => {
+    const candidate = GridOrder.create({
+      assets: !p.assets
+        ? { nanoerg: SAFE_MIN_BOX_VALUE, token: { tokenId, amount: 0n } }
+        : {
+            nanoerg: p.assets?.nanoergs ?? 0n,
+            token: { tokenId, amount: p.assets?.tokens ?? 0n }
+          },
+      prices: p.prices ?? { buy: 1n, sell: 1n },
+      max: p.max,
+      owner: p.owner.address
+    })
+      .setCreationHeight(0)
+      .build();
+
+    return mockUTxO({
+      ...candidate,
+      ergoTree
     });
+  };
 }

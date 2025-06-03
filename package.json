@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "bun test --watch"
+    "watch:unit": "bun test --watch",
+    "watch:unit:contracts": "RECOMPILE=true bun test --watch"
   },
   "dependencies": {
     "@fleet-sdk/common": "^0.9.1",

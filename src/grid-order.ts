@@ -15,7 +15,7 @@ import {
 } from "@fleet-sdk/core";
 import type { BuyOrder, SellOrder } from "./types";
 
-const CONTRACT =
+export const GRID_CONTRACT =
   "19f1020f04000e20fbbaac7337d051c10fc3da0ccb864f4d32d40027551e1c3ea3ce361f39b91e400400040005000400050004000500040004000402050004020500d806d601e30104d602e4c6a70408d603db6308a7d604b27203730000d6058c720402d606730195e67201d805d607b2a5e4720100d608e4c6a70511d609e4c6a70611d60a7203d60b7204d1ed9683050193c27207c2a793e4c672070408720293e4c672070511720893e4c672070611720993e4c67207070ec5a795e4e30001d804d60c99c17207c1a7d60ddb63087207d60e9972059591b1720d73028cb2720d730300027304d60fb272097305009683040191720c730692720c9c720eb27208730700929591720f7308720f7205720eec937205720e938cb2720d730900017206d804d60c99c1a7c17207d60db2db63087207730a00d60e998c720d027205d60fb27209730b009683040191720c730c929c720eb27208730d00720c929591720f730e720f7205720e938c720d0172067202";
 
 export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
@@ -82,7 +82,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
       throw new Error("Prices must be specified for both buy and sell");
     }
 
-    return new OutputBuilder(options.assets.nanoerg ?? estimateMinBoxValue(), CONTRACT)
+    return new OutputBuilder(options.assets.nanoerg || estimateMinBoxValue(), GRID_CONTRACT)
       .addTokens(options.assets.token)
       .setAdditionalRegisters({
         R4: SSigmaProp(SGroupElement(first(options.owner.getPublicKeys()))),

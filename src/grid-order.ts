@@ -29,9 +29,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
   readonly #price: PriceRange;
   readonly #limits: PriceRange;
 
-  constructor(box: Box<Amount>) {
-    if (!GridOrder.validateBox(box)) throw new Error("Invalid box for GridOrder");
-
+  constructor(box: Box<Amount, R4ToR6Registers>) {
     const r5 = box.additionalRegisters.R5;
     const r6 = box.additionalRegisters.R6;
     const [buyPrice, sellPrice] = SConstant.from<[bigint, bigint]>(r5).data;
@@ -113,14 +111,6 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
         R5: SColl(SLong, [options.prices.buy, options.prices.sell]),
         R6: SColl(SLong, [options.max?.buy ?? 0n, options.max?.sell ?? 0n])
       });
-  }
-
-  static validateBox<T extends string | bigint>(box: Box<T>): box is Box<T, R4ToR6Registers> {
-    const registers = box.additionalRegisters;
-    const areRegistersPresent = registers.R4 && registers.R5 && registers.R6;
-
-    if (!areRegistersPresent) return false;
-    return true;
   }
 }
 

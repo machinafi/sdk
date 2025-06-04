@@ -21,23 +21,20 @@ const token = (amount: bigint): TokenAmount<bigint> => ({ tokenId: DEFAULT_TOKEN
 
 describe("ERG <-> Token grid order", () => {
   const tree = process.env.RECOMPILE === "true" ? compile(script).toHex() : undefined;
-  const chain = new MockChain();
-
   const mockOrderBox = orderBuilder(tree, DEFAULT_TOKEN_ID);
 
-  afterEach(() => {
-    chain.reset();
-    chain.parties.length = 0; // reset parties
-  });
+  const chain = new MockChain();
+  const bob = chain.newParty("Bob");
+  const alice = chain.newParty("Alice");
+  const contract = chain.addParty(mockOrderBox({ owner: bob }).ergoTree, "Grid contract");
+
+  afterEach(() => chain.reset({ clearParties: true }));
 
   it("Should cancel order", () => {
     // arrange
-
-    const bob = chain.newParty("Bob");
     const order = new GridOrder(
       mockOrderBox({ owner: bob, assets: { nanoergs: ONE_ERG, tokens: 100n } })
     );
-    const contract = chain.addParty(order.box.ergoTree, "Grid contract");
 
     const transaction = new TransactionBuilder(chain.height)
       .extend(order.cancel()) // cancel the order
@@ -56,9 +53,6 @@ describe("ERG <-> Token grid order", () => {
 
   it("Should partially buy tokens", () => {
     // arrange
-    const bob = chain.newParty("Bob");
-    const alice = chain.newParty("Alice");
-
     const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
     const order = new GridOrder(
       mockOrderBox({
@@ -68,7 +62,7 @@ describe("ERG <-> Token grid order", () => {
       })
     );
 
-    const contract = chain.addParty(order.box.ergoTree, "Grid contract").addUTxOs(order.box);
+    contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG });
 
     const BUY_AMOUNT = 10n; // buying 10 tokens
@@ -82,6 +76,7 @@ describe("ERG <-> Token grid order", () => {
 
     // act
     const success = chain.execute(transaction, { signers: [alice] });
+
     // assert
     expect(success).toBe(true);
 
@@ -99,10 +94,7 @@ describe("ERG <-> Token grid order", () => {
 
   it("Should not allow canceling order if not owner", () => {
     // arrange
-    const bob = chain.newParty("Bob");
-    const alice = chain.newParty("Alice");
     const order = new GridOrder(mockOrderBox({ owner: bob }));
-
     const transaction = new TransactionBuilder(chain.height)
       .extend(order.cancel()) // trying to cancel the order
       .sendChangeTo(alice.address) // sending change to Alice, but Bob is the owner

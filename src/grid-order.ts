@@ -64,23 +64,24 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
    */
   buy(amount: bigint): FleetPlugin {
     if (amount <= 0n) throw new Error("Amount must be greater than zero");
-    const box = this.#box;
 
     return ({ addInputs, addOutputs }) => {
+      const box = this.#box;
       const requiredNanoergs = amount * this.#price.buy;
 
-      const input = new ErgoUnsignedInput(box).setContextExtension({
-        0: SBool(true), // action, true == buy
-        1: SInt(0) // recreated output index, but shoult be updated on transaction build
-      });
+      const outputsLength = addOutputs(
+        OutputBuilder.from(box)
+          .setValue(box.value + requiredNanoergs)
+          .addTokens([{ tokenId: first(box.assets).tokenId, amount: amount * -1n }]) // fleet will deduct the amount from the tokens
+          .setAdditionalRegisters({ R7: SColl(SByte, box.boxId) }) // bind the output to the input box
+      );
 
-      const output = OutputBuilder.from(box)
-        .setValue(box.value + requiredNanoergs)
-        .addTokens([{ tokenId: first(box.assets).tokenId, amount: amount * -1n }]) // fleet will deduct the amount from the tokens
-        .setAdditionalRegisters({ R7: SColl(SByte, input.boxId) }); // bind the output to the input box
-
-      const outputsLength = addOutputs(output);
-      addInputs(input.setContextExtension({ 1: SInt(outputsLength - 1) }));
+      addInputs(
+        new ErgoUnsignedInput(box).setContextExtension({
+          0: SBool(true), // action, true == buy
+          1: SInt(outputsLength - 1) // index of the recreated output index
+        })
+      );
     };
   }
 

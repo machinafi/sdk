@@ -14,6 +14,9 @@ importers:
       '@fleet-sdk/core':
         specifier: https://pkg.pr.new/@fleet-sdk/core@master
         version: https://pkg.pr.new/@fleet-sdk/core@master
+      '@fleet-sdk/crypto':
+        specifier: https://pkg.pr.new/@fleet-sdk/crypto@master
+        version: https://pkg.pr.new/@fleet-sdk/crypto@master
       '@fleet-sdk/serializer':
         specifier: https://pkg.pr.new/@fleet-sdk/serializer@master
         version: https://pkg.pr.new/@fleet-sdk/serializer@master
@@ -115,6 +118,11 @@ packages:
 
   '@fleet-sdk/core@https://pkg.pr.new/fleet-sdk/fleet/@fleet-sdk/core@97f4935':
     resolution: {tarball: https://pkg.pr.new/fleet-sdk/fleet/@fleet-sdk/core@97f4935}
+    version: 0.9.1
+    engines: {node: '>=18'}
+
+  '@fleet-sdk/crypto@https://pkg.pr.new/@fleet-sdk/crypto@master':
+    resolution: {tarball: https://pkg.pr.new/@fleet-sdk/crypto@master}
     version: 0.9.1
     engines: {node: '>=18'}
 
@@ -256,6 +264,12 @@ snapshots:
       '@fleet-sdk/common': https://pkg.pr.new/fleet-sdk/fleet/@fleet-sdk/common@97f4935
       '@fleet-sdk/crypto': https://pkg.pr.new/fleet-sdk/fleet/@fleet-sdk/crypto@97f4935
       '@fleet-sdk/serializer': https://pkg.pr.new/fleet-sdk/fleet/@fleet-sdk/serializer@97f4935
+
+  '@fleet-sdk/crypto@https://pkg.pr.new/@fleet-sdk/crypto@master':
+    dependencies:
+      '@fleet-sdk/common': https://pkg.pr.new/fleet-sdk/fleet/@fleet-sdk/common@97f4935
+      '@noble/hashes': 1.8.0
+      '@scure/base': 1.2.6
 
   '@fleet-sdk/crypto@https://pkg.pr.new/fleet-sdk/fleet/@fleet-sdk/crypto@97f4935':
     dependencies:

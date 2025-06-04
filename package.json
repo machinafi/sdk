@@ -10,7 +10,8 @@
   "dependencies": {
     "@fleet-sdk/common": "https://pkg.pr.new/@fleet-sdk/common@master",
     "@fleet-sdk/core": "https://pkg.pr.new/@fleet-sdk/core@master",
-    "@fleet-sdk/serializer": "https://pkg.pr.new/@fleet-sdk/serializer@master"
+    "@fleet-sdk/serializer": "https://pkg.pr.new/@fleet-sdk/serializer@master",
+    "@fleet-sdk/crypto": "https://pkg.pr.new/@fleet-sdk/crypto@master"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

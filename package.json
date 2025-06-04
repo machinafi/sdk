@@ -8,13 +8,14 @@
     "watch:unit:contracts": "RECOMPILE=true bun test --watch"
   },
   "dependencies": {
-    "@fleet-sdk/common": "^0.9.1",
-    "@fleet-sdk/core": "^0.9.1"
+    "@fleet-sdk/common": "https://pkg.pr.new/@fleet-sdk/common@191",
+    "@fleet-sdk/core": "https://pkg.pr.new/@fleet-sdk/core@191",
+    "@fleet-sdk/serializer": "https://pkg.pr.new/@fleet-sdk/serializer@191"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@fleet-sdk/compiler": "^0.9.2",
     "@fleet-sdk/mock-chain": "^0.9.2",
-    "@biomejs/biome": "^1.9.4",
     "@types/bun": "latest"
   },
   "peerDependencies": {

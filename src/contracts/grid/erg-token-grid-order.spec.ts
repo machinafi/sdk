@@ -1,11 +1,17 @@
 import { compile } from "@fleet-sdk/compiler";
-import { SAFE_MIN_BOX_VALUE, TransactionBuilder, type TokenAmount } from "@fleet-sdk/core";
+import {
+  SAFE_MIN_BOX_VALUE,
+  TransactionBuilder,
+  type R4ToR6Registers,
+  type TokenAmount
+} from "@fleet-sdk/core";
 import { type KeyedMockChainParty, MockChain, mockUTxO } from "@fleet-sdk/mock-chain";
 import { afterEach, describe, expect, it } from "bun:test";
-import { GRID_CONTRACT, GridOrder, type PriceRange } from "../grid-order";
-import { first } from "@fleet-sdk/common";
+import { first, type Box } from "@fleet-sdk/common";
+import type { PriceRange } from "../../types";
+import { ERG_TOKEN_GRID_CONTRACT, ergTokenGridOrderFactory } from "./erg-token-grid-order.factory";
 
-const r = (filename: string) => `./src/contracts/${filename}`;
+const r = (filename: string) => `./src/contracts/grid/${filename}`;
 const script = await Bun.file(r("erg-token-grid-order.es")).text();
 
 const DEFAULT_TOKEN_ID = "fbbaac7337d051c10fc3da0ccb864f4d32d40027551e1c3ea3ce361f39b91e40";
@@ -14,13 +20,12 @@ const ONE_ERG = 1_000_000_000n; // 1 erg = 1 billion nanoergs
 const token = (amount: bigint): TokenAmount<bigint> => ({ tokenId: DEFAULT_TOKEN_ID, amount });
 
 describe("ERG <-> Token grid order", () => {
-  const tree = process.env.RECOMPILE === "true" ? compile(script).toHex() : GRID_CONTRACT;
+  const tree = process.env.RECOMPILE === "true" ? compile(script).toHex() : ERG_TOKEN_GRID_CONTRACT;
   const chain = new MockChain();
 
   const bob = chain.newParty("Bob");
   const alice = chain.newParty("Alice");
   const contract = chain.addParty(tree, "Grid contract");
-  console.log(process.env.RECOMPILE);
 
   const mockOrderBox = orderBuilder(contract.ergoTree, DEFAULT_TOKEN_ID);
 
@@ -28,15 +33,15 @@ describe("ERG <-> Token grid order", () => {
 
   it("Should cancel order", () => {
     // arrange
-    const order = new GridOrder(
-      mockOrderBox({
-        owner: bob,
-        assets: { nanoergs: ONE_ERG, tokens: 100n }
-      })
-    );
+    const orderBox = mockOrderBox({
+      owner: bob,
+      assets: { nanoergs: ONE_ERG, tokens: 100n }
+    });
+
+    const input = ergTokenGridOrderFactory.cancel(orderBox);
 
     const transaction = new TransactionBuilder(chain.height)
-      .extend(order.cancel())
+      .from(input, { ensureInclusion: true })
       .sendChangeTo(bob.address)
       .build();
 
@@ -53,23 +58,24 @@ describe("ERG <-> Token grid order", () => {
   it("Should partially buy tokens", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
-    const order = new GridOrder(
-      mockOrderBox({
-        owner: bob,
-        assets: { tokens: 100n },
-        prices // buy at 5 nanoergs per token, sell at 10 nanoergs per token
-      })
-    );
+    const orderBox = mockOrderBox({
+      owner: bob,
+      assets: { tokens: 100n },
+      prices // buy at 5 nanoergs per token, sell at 10 nanoergs per token
+    });
 
-    contract.addUTxOs(order.box);
+    contract.addUTxOs(orderBox);
     alice.addBalance({ nanoergs: ONE_ERG });
 
     const BUY_AMOUNT = 10n; // buying 10 tokens
     const PAY_AMOUNT = BUY_AMOUNT * prices.buy; // 10 * 5 = 50 nanoergs
 
+    const [input, output] = ergTokenGridOrderFactory.buy(orderBox, BUY_AMOUNT, prices.buy);
+
     const transaction = new TransactionBuilder(chain.height)
+      .from(input, { ensureInclusion: true })
       .from(alice.utxos)
-      .extend(order.buy(BUY_AMOUNT)) // buying 10 tokens
+      .to(output) // output box with 10 tokens bought
       .sendChangeTo(alice.address)
       .build();
 
@@ -81,8 +87,8 @@ describe("ERG <-> Token grid order", () => {
 
     expect(contract.utxos.length).toBe(1);
     expect(contract.balance).toStrictEqual({
-      nanoergs: order.box.value + PAY_AMOUNT, // 1_000_000_000 + 50 = 1_000_000_050 nanoergs in the contract
-      tokens: [token(first(order.box.assets).amount - BUY_AMOUNT)] // 100 - 10 = 90 tokens left in the order
+      nanoergs: orderBox.value + PAY_AMOUNT, // 1_000_000_000 + 50 = 1_000_000_050 nanoergs in the contract
+      tokens: [token(first(orderBox.assets).amount - BUY_AMOUNT)] // 100 - 10 = 90 tokens left in the order
     });
 
     expect(alice.balance).toStrictEqual({
@@ -93,10 +99,10 @@ describe("ERG <-> Token grid order", () => {
 
   it("Should not allow canceling order if not owner", () => {
     // arrange
-    const order = new GridOrder(mockOrderBox({ owner: bob }));
+    const input = ergTokenGridOrderFactory.cancel(mockOrderBox({ owner: bob }));
 
     const transaction = new TransactionBuilder(chain.height)
-      .extend(order.cancel())
+      .from(input, { ensureInclusion: true })
       .sendChangeTo(alice.address) // sending change to Alice, but Bob is the owner
       .build();
 
@@ -113,24 +119,25 @@ interface OrderParams {
 }
 
 function orderBuilder(ergoTree: string, tokenId: string) {
-  return (p: OrderParams) => {
-    const candidate = GridOrder.create({
-      assets: !p.assets
-        ? { nanoerg: SAFE_MIN_BOX_VALUE, token: { tokenId, amount: 0n } }
-        : {
-            nanoerg: p.assets?.nanoergs ?? 0n,
-            token: { tokenId, amount: p.assets?.tokens ?? 0n }
-          },
-      prices: p.prices ?? { buy: 1n, sell: 1n },
-      max: p.max,
-      owner: p.owner.address
-    })
+  return (p: OrderParams): Box<bigint, R4ToR6Registers> => {
+    const candidate = ergTokenGridOrderFactory
+      .create({
+        assets: !p.assets
+          ? { nanoerg: SAFE_MIN_BOX_VALUE, token: { tokenId, amount: 0n } }
+          : {
+              nanoerg: p.assets?.nanoergs ?? 0n,
+              token: { tokenId, amount: p.assets?.tokens ?? 0n }
+            },
+        prices: p.prices ?? { buy: 1n, sell: 1n },
+        max: p.max,
+        owner: p.owner.address
+      })
       .setCreationHeight(1)
       .build();
 
     return mockUTxO({
       ...candidate,
       ergoTree
-    });
+    }) as Box<bigint, R4ToR6Registers>;
   };
 }

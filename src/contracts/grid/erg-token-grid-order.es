@@ -32,7 +32,7 @@
   val SELL = 1;  // sell price and limit index
 
   // placeholder, replace with actual token ID
-  val tokenId = fromBase16("fbbaac7337d051c10fc3da0ccb864f4d32d40027551e1c3ea3ce361f39b91e40");
+  val tokenId = fromBase16("0000000000000000000000000000000000000000000000000000000000000000");
   val owner = SELF.R4[SigmaProp].get;
 
   val childBoxIndex = getVar[Int](1);

@@ -1,4 +1,4 @@
-import type { Box, ErgoAddress, FleetPlugin, R4ToR6Registers, TokenAmount } from "@fleet-sdk/core";
+import type { Box, FleetPlugin, R4ToR6Registers, TokenAmount } from "@fleet-sdk/core";
 
 export type AssetId = "nanoerg" | (string & {});
 
@@ -29,13 +29,6 @@ export interface BuyOrder<T = bigint> extends Order<T> {
 
 export interface SellOrder<T = bigint> extends Order<T> {
   sell: (amount: bigint) => FleetPlugin;
-}
-
-export interface GridOrderCreationParams {
-  owner: ErgoAddress;
-  assets: ExchangeableAssets;
-  prices: PriceRange;
-  max?: PriceRange;
 }
 
 export interface PriceRange {

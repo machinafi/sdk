@@ -20,34 +20,27 @@ import {
 } from "@fleet-sdk/core";
 import type { Assets, BuyOrder, ExchangeableAssets, PriceRange, SellOrder } from "./types";
 
-const TOKEN_ID_CONST_INDEX = 1;
+const TOKEN_ID_CONST_INDEX = 0;
 export const ERG_TOKEN_GRID_CONTRACT =
-  "1af1020f04000e2000000000000000000000000000000000000000000000000000000000000000000400040005000400050004000500040004000402050004020500d806d601e30104d602e4c6a70408d603db6308a7d604b27203730000d6058c720402d606730195e67201d805d607b2a5e4720100d608e4c6a70511d609e4c6a70611d60a7203d60b7204d1ed9683050193c27207c2a793e4c672070408720293e4c672070511720893e4c672070611720993e4c67207070ec5a795e4e30001d804d60c99c17207c1a7d60ddb63087207d60e9972059591b1720d73028cb2720d730300027304d60fb272097305009683040191720c730692720c9c720eb27208730700929591720f7308720f7205720eec937205720e938cb2720d730900017206d804d60c99c1a7c17207d60db2db63087207730a00d60e998c720d027205d60fb27209730b009683040191720c730c929c720eb27208730d00720c929591720f730e720f7205720e938c720d0172067202";
-const ERG_TOKEN_GRID_TEMPLATE =
-  "d806d601e30104d602e4c6a70408d603db6308a7d604b27203730000d6058c720402d606730195e67201d805d607b2a5e4720100d608e4c6a70511d609e4c6a70611d60a7203d60b7204d1ed9683050193c27207c2a793e4c672070408720293e4c672070511720893e4c672070611720993e4c67207070ec5a795e4e30001d804d60c99c17207c1a7d60ddb63087207d60e9972059591b1720d73028cb2720d730300027304d60fb272097305009683040191720c730692720c9c720eb27208730700929591720f7308720f7205720eec937205720e938cb2720d730900017206d804d60c99c1a7c17207d60db2db63087207730a00d60e998c720d027205d60fb27209730b009683040191720c730c929c720eb27208730d00720c929591720f730e720f7205720e938c720d0172067202";
+  "1aa7020d0e200000000000000000000000000000000000000000000000000000000000000000040004000500040004000500050004000400040005000402d803d601e30104d602e4c6a70408d603730095e67201d804d604b2a5e4720100d605e4c6a70511d606db6308a7d6079591b1720673018cb27206730200027303d1edededed93c27204c2a793e4c672040408720293e4c672040511720593e4c67204060ec5a795e4e30001d803d60899c17204c1a7d609db63087204d60a9972079591b1720973048cb27209730500027306eded91720873079272089c720ab27205730800ec937207720a938cb27209730900017203d802d60899c1a7c17204d609b2db63087204730a00eded917208730b929c998c7209027207b27205730c007208938c72090172037202";
+const ERG_TOKEN_GRID_TEMPLATE = "929c998c7209027207b27205730c007208938c72090172037202";
 
 export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
   readonly #box: Box<bigint, R4ToR6Registers>;
 
   readonly #price: PriceRange;
-  readonly #limits: PriceRange;
   readonly #assets: Assets;
 
   constructor(box: Box<Amount, R4ToR6Registers>) {
     if (!validateErgoTree(box.ergoTree)) throw new Error("Invalid Grid Order contract");
 
-    const quoteTokenId = box.ergoTree.substring(16, 64 + 16);
+    const quoteTokenId = box.ergoTree.substring(12, 12 + 64);
     if (!validateToken(quoteTokenId, box, 0)) throw new Error("Invalid token for the contract");
 
     const prices = SConstant.from<[bigint, bigint]>(box.additionalRegisters.R5);
-    const limits = SConstant.from<[bigint, bigint]>(box.additionalRegisters.R6);
-    if (!validateRegisters(prices, limits)) throw new Error("Invalid Grid Order registers");
+    if (prices.type.toString() !== "SColl[SLong]") throw new Error("Invalid order box");
 
-    const [buyPrice, sellPrice] = prices.data;
-    const [buyMax, sellMax] = limits.data;
-
-    this.#price = { buy: buyPrice, sell: sellPrice };
-    this.#limits = { buy: buyMax, sell: sellMax };
+    this.#price = { buy: prices.data[0], sell: prices.data[1] };
     this.#box = ensureUTxOBigInt(box) as Box<bigint, R4ToR6Registers>;
     this.#assets = {
       base: { tokenId: "nanoerg", amount: this.#box.value },
@@ -57,10 +50,6 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
 
   get price(): PriceRange {
     return this.#price;
-  }
-
-  get max(): PriceRange {
-    return this.#limits;
   }
 
   get box(): Box<bigint, R4ToR6Registers> {
@@ -89,8 +78,8 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
       const outputsLength = addOutputs(
         OutputBuilder.from(box)
           .setValue(box.value + requiredNanoergs)
-          .addTokens([{ tokenId: first(box.assets).tokenId, amount: amount * -1n }]) // fleet will deduct the amount from the tokens
-          .setAdditionalRegisters({ R7: SColl(SByte, box.boxId) }) // bind the output to the input box
+          .addTokens({ tokenId: this.assets.quote.tokenId, amount: amount * -1n }) // fleet will deduct the amount from the existing tokens
+          .setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }) // bind the output to the input box
       );
 
       addInputs(
@@ -108,7 +97,25 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
    */
   sell(amount: bigint): FleetPlugin {
     if (amount <= 0n) throw new Error("Amount must be greater than zero");
-    throw new Error("Sell operation is not implemented yet");
+
+    return ({ addInputs, addOutputs }) => {
+      const box = this.#box;
+      const nanoergsPayout = amount * this.#price.sell;
+
+      const outputsLength = addOutputs(
+        OutputBuilder.from(box)
+          .setValue(box.value - nanoergsPayout)
+          .addTokens({ tokenId: this.assets.quote.tokenId, amount }) // fleet will sum the amount to the existing tokens
+          .setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }) // bind the output to the input box
+      );
+
+      addInputs(
+        new ErgoUnsignedInput(box).setContextExtension({
+          0: SBool(false), // action, false == sell
+          1: SInt(outputsLength - 1) // index of the recreated output index
+        })
+      );
+    };
   }
 
   static create(options: GridOrderCreationParams): OutputBuilder {
@@ -125,13 +132,19 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
       .replaceConstant(TOKEN_ID_CONST_INDEX, tokenId)
       .toAddress();
 
-    return new OutputBuilder(options.assets.nanoerg || estimateMinBoxValue(), contract)
-      .addTokens(options.assets.token)
-      .setAdditionalRegisters({
-        R4: SSigmaProp(SGroupElement(first(options.owner.getPublicKeys()))),
-        R5: SColl(SLong, [options.prices.buy, options.prices.sell]),
-        R6: SColl(SLong, [options.max?.buy ?? 0n, options.max?.sell ?? 0n])
-      });
+    const order = new OutputBuilder(
+      options.assets.nanoerg || estimateMinBoxValue(),
+      contract
+    ).setAdditionalRegisters({
+      R4: SSigmaProp(SGroupElement(first(options.owner.getPublicKeys()))),
+      R5: SColl(SLong, [options.prices.buy, options.prices.sell])
+    });
+
+    if (options.assets.token.amount > 0n) {
+      order.addTokens(options.assets.token);
+    }
+
+    return order;
   }
 }
 
@@ -140,13 +153,6 @@ function validateErgoTree(ergoTree: string): boolean {
     ergoTree?.length === ERG_TOKEN_GRID_CONTRACT.length &&
     ergoTree.endsWith(ERG_TOKEN_GRID_TEMPLATE)
   );
-}
-
-function validateRegisters(
-  r5: SConstant<[bigint, bigint]>,
-  r6: SConstant<[bigint, bigint]>
-): boolean {
-  return r5.type.toString() === "SColl[SLong]" && r6.type.toString() === "SColl[SLong]";
 }
 
 function validateToken(tokenId: string, box: Box, index: number): boolean {

@@ -61,14 +61,13 @@
       val tokensOut = selfTokenAmount - childTokenAmount;   // tokens paid out to the buyer
       val requiredNanoergs = tokensOut * price;             // nanoergs covering the token price
       
-      val validToken = selfTokenAmount == tokensOut || childBox.tokens(T)._1 == tokenId; 
-
-      val validBuy =                      // should be true if:
-        nanoergsIn > 0L &&                // 1. the incoming nanoergs amount is positive
-        nanoergsIn >= requiredNanoergs && // 2. the nanoergs are enough to cover the token price
-        validToken;                       // 3. the token ID is valid, if there is token change
+      val validBuy =                         // should be true if:
+        nanoergsIn > 0L &&                   // 1. the incoming nanoergs amount is positive
+        nanoergsIn >= requiredNanoergs &&    // 2. the nanoergs are enough to cover the token price
+        (selfTokenAmount == tokensOut ||     // 3.1. no tokens left; or
+          childBox.tokens(T)._1 == tokenId); // 3.2. else, the token ID is valid
       
-      validBuy                            // return the result of the buy validation
+      validBuy                               // return the result of the buy validation
     } else {
       // ======================================= //
       // The user is SELLING tokens for nanoergs //
@@ -81,12 +80,12 @@
       val tokensIn = childBox.tokens(T)._2 - selfTokenAmount; // tokens received from the seller
       val minPayout = tokensIn * price;                       // nanoergs covering the token price
 
-      val validSell =                     // should be true if:
-        nanoergsOut > 0L &&               // 1. the nanoergs difference is positive
-        minPayout >= nanoergsOut &&       // 2. the tokens paid are enough to cover the nanoergs out
-        childBox.tokens(T)._1 == tokenId; // 3. the token ID is valid
+      val validSell =                        // should be true if:
+        nanoergsOut > 0L &&                  // 1. the nanoergs difference is positive
+        minPayout >= nanoergsOut &&          // 2. the tokens paid are enough to cover the nanoergs out
+        childBox.tokens(T)._1 == tokenId;    // 3. the token ID is valid
 
-      validSell                           // return the result of the sell validation
+      validSell                              // return the result of the sell validation
     }
 
     sigmaProp(validRecreation && validExchange)

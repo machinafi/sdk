@@ -19,7 +19,7 @@ const ONE_ERG = 1_000_000_000n; // 1 erg = 1 billion nanoergs
 
 const token = (amount: bigint): TokenAmount<bigint> => ({ tokenId: DEFAULT_TOKEN_ID, amount });
 
-describe("ERG <-> Token grid order", () => {
+describe("Auto-compound ERG <-> Token grid order", () => {
   const tree = process.env.RECOMPILE === "true" ? compile(script).toHex() : undefined;
   const mockOrderBox = orderBuilder(tree, DEFAULT_TOKEN_ID);
 

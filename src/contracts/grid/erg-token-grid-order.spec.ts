@@ -92,6 +92,47 @@ describe("ERG <-> Token grid order", () => {
     });
   });
 
+  it("Should partially sell tokens", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
+    const order = new GridOrder(
+      mockOrderBox({
+        owner: bob,
+        assets: { nanoergs: ONE_ERG },
+        prices // buy at 5 nanoergs per token, sell at 10 nanoergs per token
+      })
+    );
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ tokens: [token(100n)], nanoergs: ONE_ERG }); // Alice has 100 tokens to sell
+
+    const SELL_AMOUNT = 10n; // selling 10 tokens
+    const PAY_AMOUNT = SELL_AMOUNT * prices.sell; // 10 * 10 = 100 nanoergs
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.sell(SELL_AMOUNT)) // sell 10 tokens
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    const success = chain.execute(transaction, { signers: [alice] });
+
+    // assert
+    expect(success).toBe(true);
+
+    expect(contract.utxos.length).toBe(1);
+    expect(contract.balance).toStrictEqual({
+      nanoergs: order.box.value - PAY_AMOUNT,
+      tokens: [token(SELL_AMOUNT)]
+    });
+
+    expect(alice.balance).toStrictEqual({
+      nanoergs: ONE_ERG + PAY_AMOUNT,
+      tokens: [token(90n)]
+    });
+  });
+
   it("Should not allow canceling order if not owner", () => {
     // arrange
     const order = new GridOrder(mockOrderBox({ owner: bob }));
@@ -101,7 +142,9 @@ describe("ERG <-> Token grid order", () => {
       .build();
 
     // act
-    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow();
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(
+      "Tree root should be real but was UnprovenSchnorr"
+    );
   });
 });
 

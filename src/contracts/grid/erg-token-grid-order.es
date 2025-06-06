@@ -82,7 +82,7 @@
 
       val validSell =                        // should be true if:
         nanoergsOut > 0L &&                  // 1. the nanoergs difference is positive
-        minPayout >= nanoergsOut &&          // 2. the tokens paid are enough to cover the nanoergs out
+        minPayout >= nanoergsOut &&          // 2. the incoming tokens are enough to cover the nanoergs out
         childBox.tokens(T)._1 == tokenId;    // 3. the token ID is valid
 
       validSell                              // return the result of the sell validation

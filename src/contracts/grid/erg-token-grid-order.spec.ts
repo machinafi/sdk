@@ -92,6 +92,47 @@ describe("Auto-compound ERG <-> Token grid order", () => {
     });
   });
 
+  it("Should fully buy tokens", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
+    const order = new GridOrder(
+      mockOrderBox({
+        owner: bob,
+        assets: { tokens: 100n },
+        prices // buy at 5 nanoergs per token, sell at 10 nanoergs per token
+      })
+    );
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG });
+
+    const BUY_AMOUNT = 100n; // buying all 100 tokens
+    const PAY_AMOUNT = BUY_AMOUNT * prices.buy; // 10 * 5 = 50 nanoergs
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.buy(BUY_AMOUNT)) // buy tokens
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    const success = chain.execute(transaction, { signers: [alice] });
+
+    // assert
+    expect(success).toBe(true);
+
+    expect(contract.utxos.length).toBe(1);
+    expect(contract.balance).toStrictEqual({
+      nanoergs: order.box.value + PAY_AMOUNT,
+      tokens: [] // no tokens left in the order
+    });
+
+    expect(alice.balance).toStrictEqual({
+      nanoergs: ONE_ERG - PAY_AMOUNT, // 1_000_000_000 - 50 = 999_999_950 nanoergs left
+      tokens: [token(100n)] // alice now has all 100 tokens
+    });
+  });
+
   it("Should partially sell tokens", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token

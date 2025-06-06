@@ -130,19 +130,12 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
     const tokenId = SColl(SByte, options.assets.token.tokenId);
     const contract = new ErgoTree(ERG_TOKEN_CONTRACT).replaceConstant(0, tokenId);
 
-    const order = new OutputBuilder(
-      options.assets.nanoerg || estimateMinBoxValue(),
-      contract
-    ).setAdditionalRegisters({
-      R4: SSigmaProp(SGroupElement(first(options.owner.getPublicKeys()))),
-      R5: SColl(SLong, [options.prices.buy, options.prices.sell])
-    });
-
-    if (options.assets.token.amount > 0n) {
-      order.addTokens(options.assets.token);
-    }
-
-    return order;
+    return new OutputBuilder(options.assets.nanoerg || estimateMinBoxValue(), contract)
+      .addTokens(options.assets.token)
+      .setAdditionalRegisters({
+        R4: SSigmaProp(SGroupElement(first(options.owner.getPublicKeys()))),
+        R5: SColl(SLong, [options.prices.buy, options.prices.sell])
+      });
   }
 }
 

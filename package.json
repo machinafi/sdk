@@ -8,15 +8,15 @@
     "watch:unit:contracts": "RECOMPILE=true bun test --watch"
   },
   "dependencies": {
-    "@fleet-sdk/common": "https://pkg.pr.new/@fleet-sdk/common@d3911f2",
-    "@fleet-sdk/core": "https://pkg.pr.new/@fleet-sdk/core@d3911f2",
-    "@fleet-sdk/serializer": "https://pkg.pr.new/@fleet-sdk/serializer@d3911f2",
-    "@fleet-sdk/crypto": "https://pkg.pr.new/@fleet-sdk/crypto@d3911f2"
+    "@fleet-sdk/common": "https://pkg.pr.new/@fleet-sdk/common@e41c5f7",
+    "@fleet-sdk/core": "https://pkg.pr.new/@fleet-sdk/core@e41c5f7",
+    "@fleet-sdk/serializer": "https://pkg.pr.new/@fleet-sdk/serializer@e41c5f7",
+    "@fleet-sdk/crypto": "https://pkg.pr.new/@fleet-sdk/crypto@e41c5f7"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@fleet-sdk/compiler": "https://pkg.pr.new/@fleet-sdk/compiler@d3911f2",
-    "@fleet-sdk/mock-chain": "https://pkg.pr.new/@fleet-sdk/mock-chain@d3911f2",
+    "@fleet-sdk/compiler": "https://pkg.pr.new/@fleet-sdk/compiler@e41c5f7",
+    "@fleet-sdk/mock-chain": "https://pkg.pr.new/@fleet-sdk/mock-chain@e41c5f7",
     "@types/bun": "latest"
   },
   "peerDependencies": {

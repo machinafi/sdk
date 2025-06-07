@@ -3,7 +3,7 @@ import type {
   ErgoUnsignedInput,
   FleetPlugin,
   OutputBuilder,
-  R4ToR6Registers,
+  R4ToR5Registers,
   TokenAmount
 } from "@fleet-sdk/core";
 
@@ -21,7 +21,7 @@ export interface Assets {
 
 export interface Order<T = bigint> {
   price: T;
-  box: Box<bigint, R4ToR6Registers>;
+  box: Box<bigint, R4ToR5Registers>;
   // assets: Assets;
 
   /**

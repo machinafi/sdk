@@ -2,29 +2,31 @@ import { compile } from "@fleet-sdk/compiler";
 import {
   SAFE_MIN_BOX_VALUE,
   TransactionBuilder,
-  type R4ToR6Registers,
+  type R4ToR5Registers,
   type TokenAmount
 } from "@fleet-sdk/core";
 import { type KeyedMockChainParty, MockChain, mockUTxO } from "@fleet-sdk/mock-chain";
 import { afterEach, describe, expect, it } from "bun:test";
-import { first, type Box } from "@fleet-sdk/common";
+import { first, type Amount, type Box } from "@fleet-sdk/common";
 import type { PriceRange } from "../../types";
 import { GridOrder } from "../../grid-order";
 
 const r = (filename: string) => `./src/contracts/grid/${filename}`;
 const script = await Bun.file(r("erg-token-grid-order.es")).text();
 
-const DEFAULT_TOKEN_ID = "fbbaac7337d051c10fc3da0ccb864f4d32d40027551e1c3ea3ce361f39b91e40";
+const SIGUSD_TOKEN_ID = "fbbaac7337d051c10fc3da0ccb864f4d32d40027551e1c3ea3ce361f39b91e40";
+const FAKE_TOKEN_ID = "fb96947d14ab7006d0aaf90383934278517d7b6e300ad4b7cbbd13cfc3e4ca69";
 const ONE_ERG = 1_000_000_000n; // 1 erg = 1 billion nanoergs
 
-const sigUsd = (amount: bigint): TokenAmount<bigint> => ({ tokenId: DEFAULT_TOKEN_ID, amount });
+const sigUsd = (amount: bigint): TokenAmount<bigint> => ({ tokenId: SIGUSD_TOKEN_ID, amount });
+const fakeToken = (amount: bigint): TokenAmount<bigint> => ({ tokenId: FAKE_TOKEN_ID, amount });
 
 const REDUCED_TO_FALSE_ERROR = "Script reduced to false";
 const UNPROVEN_SCHNORR_ERROR = "Tree root should be real but was UnprovenSchnorr";
 
 describe("Grid order | erg <-> token | auto-compound", () => {
   const tree = process.env.RECOMPILE === "true" ? compile(script).toHex() : undefined;
-  const mockOrderBox = orderBuilder(tree, DEFAULT_TOKEN_ID);
+  const mockOrderBox = orderBuilder(tree, SIGUSD_TOKEN_ID);
 
   const chain = new MockChain();
   const bob = chain.newParty("Bob");
@@ -214,6 +216,65 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     });
   });
 
+  it.todo("Should allow composing multiple orders in the same transaction", () => {});
+
+  it("Should allow operations in the child orders", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n };
+    const fatherOrder = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { tokens: 100n }, prices })
+    );
+
+    contract.addUTxOs(fatherOrder.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [] });
+    bob.addBalance({ nanoergs: ONE_ERG, tokens: [] });
+
+    const fatherTx = new TransactionBuilder(chain.height)
+      .extend(fatherOrder.buy(10n))
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    expect(() => chain.execute(fatherTx, { signers: [alice] })).not.toThrow();
+
+    // assert sell
+    const childOrder1 = new GridOrder(
+      fatherTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>
+    );
+    const childSellTx = new TransactionBuilder(chain.height)
+      .extend(childOrder1.sell(5n))
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    expect(() => chain.execute(childSellTx, { signers: [alice] })).not.toThrow();
+
+    // assert buy
+    const childOrder2 = new GridOrder(
+      childSellTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>
+    );
+    const childBuyTx = new TransactionBuilder(chain.height)
+      .extend(childOrder2.buy(5n))
+      .from(bob.utxos)
+      .sendChangeTo(bob.address)
+      .build();
+
+    expect(() => chain.execute(childBuyTx, { signers: [bob] })).not.toThrow();
+
+    // assert cancel
+    const childOrder3 = new GridOrder(
+      childBuyTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>
+    );
+    const childCancelTx = new TransactionBuilder(chain.height)
+      .extend(childOrder3.cancel())
+      .from(bob.utxos)
+      .sendChangeTo(bob.address)
+      .build();
+
+    expect(() => chain.execute(childCancelTx, { signers: [bob] })).not.toThrow();
+  });
+
   it("Should not allow canceling order if not by the owner", () => {
     // arrange
     const order = new GridOrder(mockOrderBox({ owner: bob }));
@@ -265,6 +326,55 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     // act
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
+
+  it("Should not allow buying when the Token ID is swapped", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n };
+    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { tokens: 100n }, prices }));
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigUsd(100n), fakeToken(200n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        // attempt to buy tokens but maliciously replace the token ID
+        order.buy(10n, (output) => output.eject((x) => (x.tokens.at(0).tokenId = FAKE_TOKEN_ID)))
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should not allow selling when the Token ID is swapped", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n };
+    const order = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { nanoergs: ONE_ERG }, prices })
+    );
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigUsd(100n), fakeToken(100n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        // attempt to sell tokens but maliciously replace the token ID
+        order.sell(10n, (output) => output.eject((x) => (x.tokens.at(0).tokenId = FAKE_TOKEN_ID)))
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it.todo("Should not allow changing the owner of the order", () => {});
+  it.todo("Should not allow changing the prices of the order", () => {});
+  it.todo("Should not allow changing the contract of the order", () => {});
+  it.todo("Should not allow spending the order from multiple outputs", () => {});
 });
 
 interface OrderParams {
@@ -275,7 +385,7 @@ interface OrderParams {
 }
 
 function orderBuilder(ergoTree: string | undefined, tokenId: string) {
-  return (p: OrderParams): Box<bigint, R4ToR6Registers> => {
+  return (p: OrderParams): Box<bigint, R4ToR5Registers> => {
     const candidate = GridOrder.create({
       assets: !p.assets
         ? { nanoerg: SAFE_MIN_BOX_VALUE, token: { tokenId, amount: 0n } }
@@ -293,6 +403,6 @@ function orderBuilder(ergoTree: string | undefined, tokenId: string) {
     return mockUTxO({
       ...candidate,
       ergoTree: ergoTree ?? candidate.ergoTree
-    }) as Box<bigint, R4ToR6Registers>;
+    }) as Box<bigint, R4ToR5Registers>;
   };
 }

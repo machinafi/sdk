@@ -1,4 +1,10 @@
-import { ensureUTxOBigInt, first, type Amount, type Box } from "@fleet-sdk/common";
+import {
+  ensureUTxOBigInt,
+  first,
+  type Amount,
+  type Box,
+  type BoxCandidate
+} from "@fleet-sdk/common";
 import {
   SBool,
   SByte,
@@ -14,9 +20,9 @@ import {
   estimateMinBoxValue,
   OutputBuilder,
   type FleetPlugin,
-  type R4ToR6Registers,
   ErgoUnsignedInput,
-  ErgoTree
+  ErgoTree,
+  type R4ToR5Registers
 } from "@fleet-sdk/core";
 import type {
   ActionHandler,
@@ -33,12 +39,12 @@ const ERG_TOKEN_TEMPLATE =
   "d803d601e30104d602e4c6a70408d603730095e67201d804d604b2a5e4720100d605e4c6a70511d606db6308a7d6079591b1720673018cb27206730200027303d1edededed93c27204c2a793e4c672040408720293e4c672040511720593e4c67204060ec5a795e4e30001d803d60899c17204c1a7d609db63087204d60a9972079591b1720973048cb27209730500027306eded91720873079272089c720ab27205730800ec937207720a938cb27209730900017203d802d60899c1a7c17204d609b2db63087204730a00eded917208730b929c998c7209027207b27205730c007208938c72090172037202";
 
 export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
-  readonly #box: Box<bigint, R4ToR6Registers>;
+  readonly #box: Box<bigint, R4ToR5Registers>;
 
   readonly #price: PriceRange;
   readonly #assets: Assets;
 
-  constructor(box: Box<Amount, R4ToR6Registers>) {
+  constructor(box: Box<Amount, R4ToR5Registers> | BoxCandidate<Amount, R4ToR5Registers>) {
     if (!validateErgoTree(box.ergoTree)) throw new Error("Invalid Grid Order contract");
 
     const quoteTokenId = box.ergoTree.substring(12, 12 + 64);
@@ -48,7 +54,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
     if (prices.type.toString() !== "SColl[SLong]") throw new Error("Invalid order box");
 
     this.#price = { buy: prices.data[0], sell: prices.data[1] };
-    this.#box = ensureUTxOBigInt(box) as Box<bigint, R4ToR6Registers>;
+    this.#box = ensureUTxOBigInt(box) as Box<bigint, R4ToR5Registers>;
     this.#assets = {
       base: { tokenId: "nanoerg", amount: this.#box.value },
       quote: { tokenId: quoteTokenId, amount: this.#box.assets[0]?.amount ?? 0n }
@@ -59,7 +65,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
     return this.#price;
   }
 
-  get box(): Box<bigint, R4ToR6Registers> {
+  get box(): Box<bigint, R4ToR5Registers> {
     return this.#box;
   }
 
@@ -154,7 +160,7 @@ function validateErgoTree(ergoTree: string): boolean {
   return ergoTree?.length === ERG_TOKEN_CONTRACT.length && ergoTree.endsWith(ERG_TOKEN_TEMPLATE);
 }
 
-function validateToken(tokenId: string, box: Box, index: number): boolean {
+function validateToken(tokenId: string, box: BoxCandidate<Amount>, index: number): boolean {
   const token = box.assets[index];
   return !token || token.tokenId === tokenId;
 }

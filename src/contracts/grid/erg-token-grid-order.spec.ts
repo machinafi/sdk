@@ -1,6 +1,10 @@
 import { compile } from "@fleet-sdk/compiler";
 import {
   SAFE_MIN_BOX_VALUE,
+  SColl,
+  SGroupElement,
+  SLong,
+  SSigmaProp,
   TransactionBuilder,
   type R4ToR5Registers,
   type TokenAmount
@@ -26,7 +30,7 @@ const UNPROVEN_SCHNORR_ERROR = "Tree root should be real but was UnprovenSchnorr
 
 describe("Grid order | erg <-> token | auto-compound", () => {
   const tree = process.env.RECOMPILE === "true" ? compile(script).toHex() : undefined;
-  const mockOrderBox = orderBuilder(tree, SIGUSD_TOKEN_ID);
+  const mockOrderBox = createOrderMocker(tree, SIGUSD_TOKEN_ID);
 
   const chain = new MockChain();
   const bob = chain.newParty("Bob");
@@ -216,7 +220,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     });
   });
 
-  it.todo("Should allow composing multiple orders in the same transaction", () => {});
+  it.todo("Should compose multiple orders in the same transaction", () => {});
 
   it("Should allow operations in the child orders", () => {
     // arrange
@@ -371,10 +375,80 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it.todo("Should not allow changing the owner of the order", () => {});
-  it.todo("Should not allow changing the prices of the order", () => {});
-  it.todo("Should not allow changing the contract of the order", () => {});
-  it.todo("Should not allow spending the order from multiple outputs", () => {});
+  it("Should not allow changing the owner of the order", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n };
+    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { tokens: 100n }, prices }));
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigUsd(100n), fakeToken(200n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        order.buy(10n, (output) =>
+          // trying to change the owner of the order form Bob to Alice
+          output.setAdditionalRegisters({ R4: SSigmaProp(SGroupElement(alice.key.publicKey)) })
+        )
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build()
+      .toEIP12Object();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should not allow changing the prices of the order", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n };
+    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { tokens: 100n }, prices }));
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigUsd(100n), fakeToken(200n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        order.buy(10n, (output) =>
+          // trying to change the prices of the order
+          output.setAdditionalRegisters({ R5: SColl(SLong, [1n, 1n]) })
+        )
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build()
+      .toEIP12Object();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should not allow changing the contract of the order", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n };
+    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { tokens: 100n }, prices }));
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigUsd(100n), fakeToken(200n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        // attempt to buy tokens but maliciously replace the token ID
+        order.buy(10n)
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build()
+      .toEIP12Object();
+
+    // @ts-expect-error
+    transaction.outputs[0].ergoTree = alice.ergoTree; // trying to change the contract of the order
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it.todo("Should not allow spending a single order from multiple outputs", () => {});
 });
 
 interface OrderParams {
@@ -384,7 +458,7 @@ interface OrderParams {
   max?: PriceRange;
 }
 
-function orderBuilder(ergoTree: string | undefined, tokenId: string) {
+function createOrderMocker(ergoTree: string | undefined, tokenId: string) {
   return (p: OrderParams): Box<bigint, R4ToR5Registers> => {
     const candidate = GridOrder.create({
       assets: !p.assets

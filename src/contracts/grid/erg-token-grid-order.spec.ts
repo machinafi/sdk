@@ -17,9 +17,12 @@ const script = await Bun.file(r("erg-token-grid-order.es")).text();
 const DEFAULT_TOKEN_ID = "fbbaac7337d051c10fc3da0ccb864f4d32d40027551e1c3ea3ce361f39b91e40";
 const ONE_ERG = 1_000_000_000n; // 1 erg = 1 billion nanoergs
 
-const token = (amount: bigint): TokenAmount<bigint> => ({ tokenId: DEFAULT_TOKEN_ID, amount });
+const sigUsd = (amount: bigint): TokenAmount<bigint> => ({ tokenId: DEFAULT_TOKEN_ID, amount });
 
-describe("Auto-compound ERG <-> Token grid order", () => {
+const REDUCED_TO_FALSE_ERROR = "Script reduced to false";
+const UNPROVEN_SCHNORR_ERROR = "Tree root should be real but was UnprovenSchnorr";
+
+describe("Grid order | erg <-> token | auto-compound", () => {
   const tree = process.env.RECOMPILE === "true" ? compile(script).toHex() : undefined;
   const mockOrderBox = orderBuilder(tree, DEFAULT_TOKEN_ID);
 
@@ -47,7 +50,7 @@ describe("Auto-compound ERG <-> Token grid order", () => {
     // assert
     expect(success).toBe(true);
     expect(contract.utxos.length).toBe(0);
-    expect(bob.balance).toEqual({ nanoergs: ONE_ERG, tokens: [token(100n)] });
+    expect(bob.balance).toEqual({ nanoergs: ONE_ERG, tokens: [sigUsd(100n)] });
     expect(contract.balance).toEqual({ nanoergs: 0n, tokens: [] });
   });
 
@@ -83,12 +86,12 @@ describe("Auto-compound ERG <-> Token grid order", () => {
     expect(contract.utxos.length).toBe(1);
     expect(contract.balance).toStrictEqual({
       nanoergs: order.box.value + PAY_AMOUNT, // 1_000_000_000 + 50 = 1_000_000_050 nanoergs in the contract
-      tokens: [token(first(order.box.assets).amount - BUY_AMOUNT)] // 100 - 10 = 90 tokens left in the order
+      tokens: [sigUsd(first(order.box.assets).amount - BUY_AMOUNT)] // 100 - 10 = 90 tokens left in the order
     });
 
     expect(alice.balance).toStrictEqual({
       nanoergs: ONE_ERG - PAY_AMOUNT, // 1_000_000_000 - 50 = 999_999_950 nanoergs left
-      tokens: [token(BUY_AMOUNT)] // 10 tokens bought
+      tokens: [sigUsd(BUY_AMOUNT)] // 10 tokens bought
     });
   });
 
@@ -129,7 +132,7 @@ describe("Auto-compound ERG <-> Token grid order", () => {
 
     expect(alice.balance).toStrictEqual({
       nanoergs: ONE_ERG - PAY_AMOUNT, // alice has 1_000_000_000 - 500 = 999_999_500 nanoergs left
-      tokens: [token(100n)] // alice now has all 100 tokens
+      tokens: [sigUsd(100n)] // alice now has all 100 tokens
     });
   });
 
@@ -145,7 +148,7 @@ describe("Auto-compound ERG <-> Token grid order", () => {
     );
 
     contract.addUTxOs(order.box);
-    alice.addBalance({ tokens: [token(100n)], nanoergs: ONE_ERG }); // Alice has 100 tokens to sell
+    alice.addBalance({ tokens: [sigUsd(100n)], nanoergs: ONE_ERG }); // Alice has 100 tokens to sell
 
     const SELL_AMOUNT = 10n; // selling 10 tokens
     const PAY_AMOUNT = SELL_AMOUNT * prices.sell; // 10 * 10 = 100 nanoergs
@@ -165,12 +168,12 @@ describe("Auto-compound ERG <-> Token grid order", () => {
     expect(contract.utxos.length).toBe(1);
     expect(contract.balance).toStrictEqual({
       nanoergs: order.box.value - PAY_AMOUNT,
-      tokens: [token(SELL_AMOUNT)]
+      tokens: [sigUsd(SELL_AMOUNT)]
     });
 
     expect(alice.balance).toStrictEqual({
       nanoergs: ONE_ERG + PAY_AMOUNT,
-      tokens: [token(90n)]
+      tokens: [sigUsd(90n)]
     });
   });
 
@@ -178,15 +181,11 @@ describe("Auto-compound ERG <-> Token grid order", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
     const order = new GridOrder(
-      mockOrderBox({
-        owner: bob,
-        assets: { nanoergs: ONE_ERG },
-        prices // buy at 5 nanoergs per token, sell at 10 nanoergs per token
-      })
+      mockOrderBox({ owner: bob, assets: { nanoergs: ONE_ERG }, prices })
     );
 
     contract.addUTxOs(order.box);
-    alice.addBalance({ nanoergs: ONE_ERG, tokens: [token(100n)] }); // Alice has 100 tokens to sell
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigUsd(100n)] }); // Alice has 100 tokens to sell
 
     const SELL_AMOUNT = 100n; // selling all 100 tokens
     const PAY_AMOUNT = SELL_AMOUNT * prices.sell; // 100 * 10 = 1000 nanoergs
@@ -206,7 +205,7 @@ describe("Auto-compound ERG <-> Token grid order", () => {
     expect(contract.utxos.length).toBe(1);
     expect(contract.balance).toStrictEqual({
       nanoergs: order.box.value - PAY_AMOUNT,
-      tokens: [token(SELL_AMOUNT)] // contract now has 100 tokens from alice
+      tokens: [sigUsd(SELL_AMOUNT)] // contract now has 100 tokens from alice
     });
 
     expect(alice.balance).toStrictEqual({
@@ -215,7 +214,7 @@ describe("Auto-compound ERG <-> Token grid order", () => {
     });
   });
 
-  it("Should not allow canceling order if not owner", () => {
+  it("Should not allow canceling order if not by the owner", () => {
     // arrange
     const order = new GridOrder(mockOrderBox({ owner: bob }));
     const transaction = new TransactionBuilder(chain.height)
@@ -224,9 +223,47 @@ describe("Auto-compound ERG <-> Token grid order", () => {
       .build();
 
     // act
-    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(
-      "Tree root should be real but was UnprovenSchnorr"
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(UNPROVEN_SCHNORR_ERROR);
+  });
+
+  it("Should not allow buying tokens when underpaying", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n };
+    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { tokens: 100n }, prices }));
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.buy(10n, (output) => output.setValue(output.value - 1n))) // trying to pay 1 nanoerg less
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should not allow selling tokens when underpaying", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n };
+    const order = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { nanoergs: ONE_ERG }, prices })
     );
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigUsd(100n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.sell(10n, (output) => output.addTokens(sigUsd(-1n)))) // tries to sell 10 tokens but only sends 9
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    expect(transaction.outputs[0]?.assets[0]?.amount).toBe(9n); // should have 9 tokens instead of 10
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 });
 

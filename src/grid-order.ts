@@ -18,7 +18,14 @@ import {
   ErgoUnsignedInput,
   ErgoTree
 } from "@fleet-sdk/core";
-import type { Assets, BuyOrder, ExchangeableAssets, PriceRange, SellOrder } from "./types";
+import type {
+  ActionHandler,
+  Assets,
+  BuyOrder,
+  ExchangeableAssets,
+  PriceRange,
+  SellOrder
+} from "./types";
 
 export const ERG_TOKEN_CONTRACT =
   "1aa7020d0e200000000000000000000000000000000000000000000000000000000000000000040004000500040004000500050004000400040005000402d803d601e30104d602e4c6a70408d603730095e67201d804d604b2a5e4720100d605e4c6a70511d606db6308a7d6079591b1720673018cb27206730200027303d1edededed93c27204c2a793e4c672040408720293e4c672040511720593e4c67204060ec5a795e4e30001d803d60899c17204c1a7d609db63087204d60a9972079591b1720973048cb27209730500027306eded91720873079272089c720ab27205730800ec937207720a938cb27209730900017203d802d60899c1a7c17204d609b2db63087204730a00eded917208730b929c998c7209027207b27205730c007208938c72090172037202";
@@ -68,26 +75,28 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
    * Buys tokens with nanoergs at the price specified in the order.
    * @param amount - The amount of token units to buy.
    */
-  buy(amount: bigint): FleetPlugin {
+  buy(amount: bigint, hander?: ActionHandler): FleetPlugin {
     if (amount <= 0n) throw new Error("Amount must be greater than zero");
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;
       const requiredNanoergs = amount * this.#price.buy;
 
-      const outputsLength = addOutputs(
-        OutputBuilder.from(box)
-          .setValue(box.value + requiredNanoergs)
-          .addTokens({ tokenId: this.assets.quote.tokenId, amount: amount * -1n }) // fleet will deduct the amount from the existing tokens
-          .setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }) // bind the output to the input box
-      );
+      const input = new ErgoUnsignedInput(box);
+      const output = OutputBuilder.from(box)
+        .setValue(box.value + requiredNanoergs)
+        .addTokens({ tokenId: this.assets.quote.tokenId, amount: amount * -1n }) // fleet will deduct the amount from the existing tokens
+        .setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }); // bind the output to the input box
 
+      const outputsLength = addOutputs(output);
       addInputs(
-        new ErgoUnsignedInput(box).setContextExtension({
+        input.setContextExtension({
           0: SBool(true), // action, true == buy
-          1: SInt(outputsLength - 1) // index of the recreated output index
+          1: SInt(outputsLength - 1) // index of the child output
         })
       );
+
+      if (hander) hander(output, input);
     };
   }
 
@@ -95,26 +104,28 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
    * Sell tokens for nanoergs at the price specified in the order.
    * @param amount - The amount of token units to sell.
    */
-  sell(amount: bigint): FleetPlugin {
+  sell(amount: bigint, hander?: ActionHandler): FleetPlugin {
     if (amount <= 0n) throw new Error("Amount must be greater than zero");
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;
       const nanoergsPayout = amount * this.#price.sell;
 
-      const outputsLength = addOutputs(
-        OutputBuilder.from(box)
-          .setValue(box.value - nanoergsPayout)
-          .addTokens({ tokenId: this.assets.quote.tokenId, amount }) // fleet will sum the amount to the existing tokens
-          .setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }) // bind the output to the input box
-      );
+      const input = new ErgoUnsignedInput(box);
+      const output = OutputBuilder.from(box)
+        .setValue(box.value - nanoergsPayout)
+        .addTokens({ tokenId: this.assets.quote.tokenId, amount }) // fleet will sum the amount to the existing tokens
+        .setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }); // bind the output to the input box
 
+      const outputsLength = addOutputs(output);
       addInputs(
-        new ErgoUnsignedInput(box).setContextExtension({
+        input.setContextExtension({
           0: SBool(false), // action, false == sell
-          1: SInt(outputsLength - 1) // index of the recreated output index
+          1: SInt(outputsLength - 1) // index of the child output
         })
       );
+
+      if (hander) hander(output, input);
     };
   }
 

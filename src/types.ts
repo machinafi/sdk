@@ -1,4 +1,11 @@
-import type { Box, FleetPlugin, R4ToR6Registers, TokenAmount } from "@fleet-sdk/core";
+import type {
+  Box,
+  ErgoUnsignedInput,
+  FleetPlugin,
+  OutputBuilder,
+  R4ToR6Registers,
+  TokenAmount
+} from "@fleet-sdk/core";
 
 export type AssetId = "nanoerg" | (string & {});
 
@@ -24,11 +31,11 @@ export interface Order<T = bigint> {
 }
 
 export interface BuyOrder<T = bigint> extends Order<T> {
-  buy: (amount: bigint) => FleetPlugin;
+  buy: (amount: bigint, handler?: ActionHandler) => FleetPlugin;
 }
 
 export interface SellOrder<T = bigint> extends Order<T> {
-  sell: (amount: bigint) => FleetPlugin;
+  sell: (amount: bigint, handler?: ActionHandler) => FleetPlugin;
 }
 
 export interface PriceRange {
@@ -40,3 +47,12 @@ export interface ExchangeableAssets {
   nanoerg: bigint;
   token: TokenAmount<bigint>;
 }
+
+/**
+ * Action handler for modifying the output of an order action.
+ * This allows for custom modifications to the action.
+ *
+ * @param output - The output builder to modify.
+ * @param input - The unsigned input that is being processed.
+ */
+export type ActionHandler = (output: OutputBuilder, input: ErgoUnsignedInput) => void;

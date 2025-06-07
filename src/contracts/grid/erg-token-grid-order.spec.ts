@@ -123,12 +123,12 @@ describe("Auto-compound ERG <-> Token grid order", () => {
 
     expect(contract.utxos.length).toBe(1);
     expect(contract.balance).toStrictEqual({
-      nanoergs: order.box.value + PAY_AMOUNT,
+      nanoergs: order.box.value + PAY_AMOUNT, // contract now has 1_000_000_000 + 500 = 1_000_000_500 nanoergs
       tokens: [] // no tokens left in the order
     });
 
     expect(alice.balance).toStrictEqual({
-      nanoergs: ONE_ERG - PAY_AMOUNT, // 1_000_000_000 - 50 = 999_999_950 nanoergs left
+      nanoergs: ONE_ERG - PAY_AMOUNT, // alice has 1_000_000_000 - 500 = 999_999_500 nanoergs left
       tokens: [token(100n)] // alice now has all 100 tokens
     });
   });
@@ -171,6 +171,47 @@ describe("Auto-compound ERG <-> Token grid order", () => {
     expect(alice.balance).toStrictEqual({
       nanoergs: ONE_ERG + PAY_AMOUNT,
       tokens: [token(90n)]
+    });
+  });
+
+  it("Should fully sell tokens", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
+    const order = new GridOrder(
+      mockOrderBox({
+        owner: bob,
+        assets: { nanoergs: ONE_ERG },
+        prices // buy at 5 nanoergs per token, sell at 10 nanoergs per token
+      })
+    );
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [token(100n)] }); // Alice has 100 tokens to sell
+
+    const SELL_AMOUNT = 100n; // selling all 100 tokens
+    const PAY_AMOUNT = SELL_AMOUNT * prices.sell; // 100 * 10 = 1000 nanoergs
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.sell(SELL_AMOUNT))
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    const success = chain.execute(transaction, { signers: [alice] });
+
+    // assert
+    expect(success).toBe(true);
+
+    expect(contract.utxos.length).toBe(1);
+    expect(contract.balance).toStrictEqual({
+      nanoergs: order.box.value - PAY_AMOUNT,
+      tokens: [token(SELL_AMOUNT)] // contract now has 100 tokens from alice
+    });
+
+    expect(alice.balance).toStrictEqual({
+      nanoergs: ONE_ERG + PAY_AMOUNT,
+      tokens: [] // Alice has no tokens left
     });
   });
 

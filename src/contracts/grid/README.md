@@ -2,21 +2,21 @@
 
 ## Overview
 
-This is an auto-compounding two-way grid order contract for ERG and TOKEN. The contract allows users to create grid orders for buying and selling tokens at predefined prices.
+This is an auto-compounding two-way grid order contract for ERG and TOKEN. The contract allows users to create grid orders for simultaneously buying and selling tokens at predefined prices.
 
 ## Key Features
 
 - **Two-way trading:** Simultaneous buy and sell orders at grid-defined prices.
 - **Auto-compounding:** All available ERG and TOKEN balances are traded for optimal compounding.
 - **Owner withdrawal:** The owner can close the order and withdraw assets at any time.
-- **Composable:** Multiple orders can be spent in the same transaction.
+- **Composable:** Multiple orders can be used in the same transaction.
 
 ## Registers & Context Variables
 
-| Register         | Purpose                                                                 |
-| ---------------- | ----------------------------------------------------------------------- |
-| `R4: SigmaProp`  | Owner’s `SigmaProp` script (defines who can close/withdraw)             |
-| `R5: Coll[Long]` | `[buy, sell]` prices in nanoergs per token unit                         |
+| Register         | Purpose                                                                   |
+| ---------------- | ------------------------------------------------------------------------- |
+| `R4: SigmaProp`  | Owner’s `SigmaProp` script (defines who can close/withdraw)               |
+| `R5: Coll[Long]` | `[buy, sell]` prices in nanoergs per token unit                           |
 | `R6: Coll[Byte]` | Spent `Input ID` (prevents spending multiple orders with a single output) |
 
 | Context Variable | Purpose                              |
@@ -66,7 +66,7 @@ flowchart TD
 
 ## Contract Logic
 
-- **Trading (Buy/Sell):**
+- **Trading:**
 
   - Extract context variables to determine action and output.
   - For **Buy**:

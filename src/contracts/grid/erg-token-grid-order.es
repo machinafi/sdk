@@ -1,10 +1,10 @@
 {
   /**
    * [[ Description ]]
-   * This is an auto-compounding two-way grid order contract for ERG and TOKEN, Allowing users to 
+   * This is an auto-compounding two-way grid order contract for ERG and TOKEN. It allows users to 
    * create grid orders for buying and selling tokens at the same time at predefined prices, while 
-   * supporting auto-compounding to trade all available amounts. This contract also allows the 
-   * owner to cancel the order (withdraw funds) at any time.
+   * supporting auto-compounding for trading all available amounts. The owner can close the order 
+   * (withdraw funds) at any time.
    *
    * [[ Registers ]]
    * R4: SigmaProp           Owner script
@@ -12,7 +12,7 @@
    * R6: Coll[Byte]          Spent input ID, prevents spending multiple inputs with a single output
    *
    * [[ Context variables ]]
-   * 0: Boolean              Action, true == buy, false = sell
+   * 0: Boolean              Action, true == buy, false == sell
    * 1: Int                  Recreated output index
    *
    * [[ Expected actions ]]
@@ -90,9 +90,9 @@
 
     sigmaProp(validRecreation && validExchange)
   } else {
-    // ================================ //
-    // The user is CANCELLING the order //
-    // ================================ //
+    // ============================= //
+    // The user is CLOSING the order //
+    // ============================= //
     
     owner
   }

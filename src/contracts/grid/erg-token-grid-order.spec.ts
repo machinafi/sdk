@@ -39,14 +39,14 @@ describe("Grid order | erg <-> token | auto-compound", () => {
 
   afterEach(() => chain.reset({ clearParties: true }));
 
-  it("Should cancel order", () => {
+  it("Should close the order and withdrawal funds", () => {
     // arrange
     const order = new GridOrder(
       mockOrderBox({ owner: bob, assets: { nanoergs: ONE_ERG, tokens: 100n } })
     );
 
     const transaction = new TransactionBuilder(chain.height)
-      .extend(order.cancel()) // cancel the order
+      .extend(order.close()) // close the order
       .sendChangeTo(bob.address)
       .build();
 
@@ -220,7 +220,42 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     });
   });
 
-  it.todo("Should compose multiple orders in the same transaction", () => {});
+  it("Should compose multiple orders in the same transaction", () => {
+    // arrange
+    const orderA = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { tokens: 100n }, prices: { buy: 5n, sell: 10n } })
+    );
+
+    const orderB = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { tokens: 10n }, prices: { buy: 7n, sell: 12n } })
+    );
+
+    contract.addUTxOs(orderA.box).addUTxOs(orderB.box);
+    alice.addBalance({ nanoergs: ONE_ERG });
+    const PAY_AMOUNT = 100n * orderA.price.buy + 5n * orderB.price.buy;
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(orderA.buy(100n)) // buy tokens
+      .extend(orderB.buy(5n)) // buy more tokens
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    const success = chain.execute(transaction, { signers: [alice] });
+
+    // assert
+    expect(success).toBe(true);
+
+    expect(contract.utxos.length).toBe(2);
+    expect(contract.balance).toStrictEqual({
+      nanoergs: orderA.box.value + orderB.box.value + PAY_AMOUNT, // contract now has 1_000_000_000 + 500 = 1_000_000_500 nanoergs
+      tokens: [sigUsd(5n)] // no tokens left in the order
+    });
+
+    // alice now has 105 tokens, 100 from orderA and 5 from orderB
+    expect(alice.balance).toStrictEqual({ nanoergs: ONE_ERG - PAY_AMOUNT, tokens: [sigUsd(105n)] });
+  });
 
   it("Should allow operations in the child orders", () => {
     // arrange
@@ -266,24 +301,24 @@ describe("Grid order | erg <-> token | auto-compound", () => {
 
     expect(() => chain.execute(childBuyTx, { signers: [bob] })).not.toThrow();
 
-    // assert cancel
+    // assert close
     const childOrder3 = new GridOrder(
       childBuyTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>
     );
-    const childCancelTx = new TransactionBuilder(chain.height)
-      .extend(childOrder3.cancel())
+    const childCloseTx = new TransactionBuilder(chain.height)
+      .extend(childOrder3.close())
       .from(bob.utxos)
       .sendChangeTo(bob.address)
       .build();
 
-    expect(() => chain.execute(childCancelTx, { signers: [bob] })).not.toThrow();
+    expect(() => chain.execute(childCloseTx, { signers: [bob] })).not.toThrow();
   });
 
-  it("Should not allow canceling order if not by the owner", () => {
+  it("Should not allow a third party to close the order", () => {
     // arrange
     const order = new GridOrder(mockOrderBox({ owner: bob }));
     const transaction = new TransactionBuilder(chain.height)
-      .extend(order.cancel()) // trying to cancel the order
+      .extend(order.close()) // trying to close the order
       .sendChangeTo(alice.address) // sending change to Alice, but Bob is the owner
       .build();
 

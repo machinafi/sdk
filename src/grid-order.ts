@@ -73,7 +73,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
     return this.#assets;
   }
 
-  cancel(): FleetPlugin {
+  close(): FleetPlugin {
     return ({ addInputs }) => addInputs(this.#box);
   }
 

@@ -27,7 +27,7 @@ export interface Order<T = bigint> {
   /**
    * Cancels the order by allowing the owner to reclaim the funds.
    */
-  cancel: () => FleetPlugin;
+  close: () => FleetPlugin;
 }
 
 export interface BuyOrder<T = bigint> extends Order<T> {

@@ -34,7 +34,7 @@ flowchart TD
     ActionType -- Trade --> GetVars["Extract context variables: action type, output index"]
     GetVars --> TradeType{"Is action Buy or Sell?"}
     TradeType -- Buy --> BuyPrice["Get buy price from R5"]
-    BuyPrice --> BuyCalc1["Calculate ERG received and tokens to send"]
+    BuyPrice --> BuyCalc1["Calculate ERG received and tokens sent"]
     BuyCalc1 --> BuyCheck1{"Did user send ERG? (nanoergsIn > 0)"}
     BuyCheck1 -- No --> Refused["❌ Rejected"]
     BuyCheck1 -- Yes --> BuyCheck2{"Is received ERG enough to pay for tokens? (nanoergsIn &gt;= requiredNanoergs)"}

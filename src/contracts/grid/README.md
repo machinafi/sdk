@@ -34,17 +34,17 @@ flowchart TD
     ActionType -- Trade --> GetVars["Extract context variables: action type, output index"]
     GetVars --> TradeType{"Is action Buy or Sell?"}
     TradeType -- Buy --> BuyPrice["Get buy price from R5"]
-    BuyPrice --> BuyCalc1["Calculate ERG received and tokens sent"]
-    BuyCalc1 --> BuyCheck1{"Did user send ERG? (nanoergsIn > 0)"}
-    BuyCheck1 -- No --> Refused["❌ Rejected"]
-    BuyCheck1 -- Yes --> BuyCheck2{"Is received ERG enough to pay for tokens? (nanoergsIn &gt;= requiredNanoergs)"}
-    BuyCheck2 -- No --> Refused
-    BuyCheck2 -- Yes --> BuyCheck3{"Are all tokens bought? (no tokens left in the order box)"}
-    BuyCheck3 -- Yes --> FinalContractCheck{"Is contract state preserved and output correctly bound to input?"}
-    BuyCheck3 -- No --> TokenIdCheck{"Are tokens valid? (same TokenID as expected by the contract)"}
+    BuyPrice --> BuyCalc["Calculate ERG received and tokens sent"]
+    BuyCalc --> BuyCheck{"Did user send ERG? (nanoergsIn > 0)"}
+    BuyCheck -- No --> Refused["❌ Rejected"]
+    BuyCheck -- Yes --> BuyCheck1{"Is received ERG enough to pay for tokens? (nanoergsIn &gt;= requiredNanoergs)"}
+    BuyCheck1 -- No --> Refused
+    BuyCheck1 -- Yes --> BuyCheck2{"Are all tokens bought? (no tokens left in the order box)"}
+    BuyCheck2 -- Yes --> FinalContractCheck{"Is contract state preserved and replicated output correctly bound to input?"}
+    BuyCheck2 -- No --> TokenIdCheck{"Are tokens valid? (same TokenID as expected by the contract)"}
     TradeType -- Sell --> SellPrice["Get sell price from R5"]
-    SellPrice --> SellCalc1["Calculate ERG sent and tokens received"]
-    SellCalc1 --> SellCheck1{"Is ERG paid out? (nanoergsOut > 0)"}
+    SellPrice --> SellCalc["Calculate ERG sent and tokens received"]
+    SellCalc --> SellCheck1{"Is ERG paid out? (nanoergsOut > 0)"}
     SellCheck1 -- No --> Refused
     SellCheck1 -- Yes --> SellCheck2{"Are received tokens enough to pay for ERG? (minPayout &gt;= nanoergsOut)"}
     SellCheck2 -- No --> Refused
@@ -61,7 +61,6 @@ flowchart TD
      Success:::Aqua
     classDef Rose stroke-width:1px, stroke-dasharray:none, stroke:#FF5978, fill:#FFDFE5, color:#8E2236, font-weight: bold
     classDef Aqua stroke-width:1px, stroke-dasharray:none, stroke:#46EDC8, fill:#DEFFF8, color:#378E7A, font-weight: bold
-
 ```
 
 ## Contract Logic

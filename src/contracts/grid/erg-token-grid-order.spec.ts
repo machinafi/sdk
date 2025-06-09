@@ -1,8 +1,12 @@
 import { compile } from "@fleet-sdk/compiler";
 import {
+  ErgoUnsignedInput,
+  OutputBuilder,
   SAFE_MIN_BOX_VALUE,
+  SBool,
   SColl,
   SGroupElement,
+  SInt,
   SLong,
   SSigmaProp,
   TransactionBuilder,
@@ -458,7 +462,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it("Should not allow changing the contract of the order", () => {
+  it("Should not allow changing the order contract", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { tokens: 100n }, prices }));
@@ -483,7 +487,37 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it.todo("Should not allow spending a single order from multiple outputs", () => {});
+  it("Should not allow spending multiple orders to a single child output", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n };
+    const order1 = new GridOrder(mockOrderBox({ owner: bob, assets: { tokens: 100n }, prices }));
+    const order2 = new GridOrder(mockOrderBox({ owner: bob, assets: { tokens: 100n }, prices }));
+
+    contract.addUTxOs(order1.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigUsd(100n), fakeToken(200n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .from(alice.utxos)
+      .from(
+        // set index of the child output to 0, which will be the same as order1
+        new ErgoUnsignedInput(order2.box).setContextExtension({ 0: SBool(true), 1: SInt(0) }),
+        { ensureInclusion: true }
+      )
+      .extend(
+        // attempt to buy tokens but maliciously replace the token ID
+        order1.buy(10n)
+      )
+      .to(new OutputBuilder(SAFE_MIN_BOX_VALUE, alice.address).addTokens(sigUsd(10n))) // trying to create a new box to alice with the stolen tokens from order2
+      .sendChangeTo(alice.address)
+      .build()
+      .toEIP12Object();
+
+    // @ts-expect-error
+    transaction.outputs[0].ergoTree = alice.ergoTree; // trying to change the contract of the order
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
 });
 
 interface OrderParams {

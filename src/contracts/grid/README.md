@@ -79,6 +79,19 @@ flowchart TD
 - **Close Order:**
   - Only the owner (as set in `R4`) can close the order and withdraw assets.
 
+## Unit Tests
+Contract unit tests are located in the [erg-token-grid-order.spec.ts](/src/contracts/grid/erg-token-grid-order.spec.ts) file and ensure the correctness of the actions and checks.
+
+### Running Tests
+
+```bash
+# install dependencies
+bun install
+
+# run contract unit tests
+bun test:unit erg-token-grid-order
+```
+
 ## Security Considerations
 
 - The contract ensures that outputs are bound to parent inputs to prevent **input aggregation attacks**.

@@ -71,7 +71,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
       mockOrderBox({
         owner: bob,
         assets: { tokens: 100n },
-        prices // buy at 5 nanoergs per token, sell at 10 nanoergs per token
+        prices
       })
     );
 

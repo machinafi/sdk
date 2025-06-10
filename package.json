@@ -4,19 +4,20 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "test:unit": "bun test",
     "watch:unit": "bun test --watch",
-    "watch:unit:contracts": "RECOMPILE=true bun test --watch"
+    "watch:unit:recompile": "RECOMPILE=true bun test --watch"
   },
   "dependencies": {
-    "@fleet-sdk/common": "https://pkg.pr.new/@fleet-sdk/common@e41c5f7",
-    "@fleet-sdk/core": "https://pkg.pr.new/@fleet-sdk/core@e41c5f7",
-    "@fleet-sdk/serializer": "https://pkg.pr.new/@fleet-sdk/serializer@e41c5f7",
-    "@fleet-sdk/crypto": "https://pkg.pr.new/@fleet-sdk/crypto@e41c5f7"
+    "@fleet-sdk/common": "^0.10.0",
+    "@fleet-sdk/core": "^0.10.0",
+    "@fleet-sdk/serializer": "^0.10.0",
+    "@fleet-sdk/crypto": "^0.10.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@fleet-sdk/compiler": "https://pkg.pr.new/@fleet-sdk/compiler@e41c5f7",
-    "@fleet-sdk/mock-chain": "https://pkg.pr.new/@fleet-sdk/mock-chain@e41c5f7",
+    "@fleet-sdk/compiler": "^0.10.0",
+    "@fleet-sdk/mock-chain": "^0.10.0",
     "@types/bun": "latest"
   },
   "peerDependencies": {

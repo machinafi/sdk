@@ -38,13 +38,15 @@
     val buying = getVar[Boolean](0).get;  // true == buy, false == sell
     val prices = SELF.R5[Coll[Long]].get; // [buy, sell] prices
     val childBox = OUTPUTS(childBoxIndex.get);
-    val selfTokenAmount = if (SELF.tokens.size > 0) { SELF.tokens(T)._2 } else { 0L }
+    val selfTokenAmount = if (SELF.tokens.size > 0) { SELF.tokens(T)._2 } else { 0L };
 
+    val validTokenId = if (childBox.tokens.size > 0) { childBox.tokens(T)._1 == tokenId } else { true };
     val validRecreation =                                   // should be true if:
       childBox.propositionBytes == SELF.propositionBytes && // 1. preserve proposition
-      childBox.R4[SigmaProp].get == owner &&                // 2. preserve owner script
-      childBox.R5[Coll[Long]].get == prices &&              // 3. preserve prices
-      childBox.R6[Coll[Byte]].get == SELF.id                // 4. bind the child to the parent box
+      validTokenId &&                                       // 2. preserve token ID, if any
+      childBox.R4[SigmaProp].get == owner &&                // 3. preserve owner script
+      childBox.R5[Coll[Long]].get == prices &&              // 4. preserve prices
+      childBox.R6[Coll[Byte]].get == SELF.id;               // 5. bind the child to the parent box
     
     val validExchange = if (buying) {
       // ======================================= //
@@ -55,17 +57,15 @@
       val price = prices(BUY); // buy price in nanoergs
       val childTokenAmount = if (childBox.tokens.size > 0) { childBox.tokens(T)._2 } else { 0L }
 
-      val nanoergsIn = childBox.value - SELF.value;         // nanoergs received from the buyer
-      val tokensOut = selfTokenAmount - childTokenAmount;   // tokens paid out to the buyer
-      val requiredNanoergs = tokensOut * price;             // nanoergs covering the token price
+      val nanoergsIn = childBox.value - SELF.value;       // nanoergs received from the buyer
+      val tokensOut = selfTokenAmount - childTokenAmount; // tokens paid out to the buyer
+      val requiredNanoergs = tokensOut * price;           // nanoergs covering the token price
       
-      val validBuy =                         // should be true if:
-        nanoergsIn > 0L &&                   // 1. the incoming nanoergs amount is positive
-        nanoergsIn >= requiredNanoergs &&    // 2. the nanoergs are enough to cover the token price
-        (selfTokenAmount == tokensOut ||     // 3.1. no tokens left; or
-          childBox.tokens(T)._1 == tokenId); // 3.2. else, the token ID is valid
+      val validBuy =                    // should be true if:
+        nanoergsIn > 0L &&              // 1. the incoming nanoergs amount is positive
+        nanoergsIn >= requiredNanoergs; // 2. the nanoergs are enough to cover the token price
       
-      validBuy                               // return the result of the buy validation
+      validBuy                          // return the result of the buy validation
     } else {
       // ======================================= //
       // The user is SELLING tokens for nanoergs //
@@ -78,12 +78,11 @@
       val tokensIn = childBox.tokens(T)._2 - selfTokenAmount; // tokens received from the seller
       val minPayout = tokensIn * price;                       // nanoergs covering the token price
 
-      val validSell =                        // should be true if:
-        nanoergsOut > 0L &&                  // 1. the nanoergs difference is positive
-        minPayout >= nanoergsOut &&          // 2. the incoming tokens are enough to cover the nanoergs out
-        childBox.tokens(T)._1 == tokenId;    // 3. the token ID is valid
+      val validSell =              // should be true if:
+        tokensIn > 0L &&           // 1. the incoming tokens is positive
+        minPayout >= nanoergsOut;  // 2. the incoming tokens are enough to cover the nanoergs out
 
-      validSell                              // return the result of the sell validation
+      validSell                    // return the result of the sell validation
     }
 
     sigmaProp(validRecreation && validExchange)

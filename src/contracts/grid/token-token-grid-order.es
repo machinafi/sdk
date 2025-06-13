@@ -6,7 +6,7 @@
    *
    * [[ Registers ]]
    * R4: SigmaProp           Owner script
-   * R5: Coll[Long]          [buy, sell] prices in quote token units
+   * R5: Coll[Long]          [buy, sell] prices in base token units
    * R6: Coll[Byte]          Spent input ID, prevents spending multiple inputs with a single output
    *
    * [[ Context variables ]]
@@ -25,7 +25,7 @@
   val BUY  = 0;  // buy price and limit index
   val SELL = 1;  // sell price and limit index
 
-  val baseTokenId =  fromBase16("0000000000000000000000000000000000000000000000000000000000000000");
+  val baseTokenId  = fromBase16("0000000000000000000000000000000000000000000000000000000000000000");
   val quoteTokenId = fromBase16("0000000000000000000000000000000000000000000000000000000000000001");
 
   val owner = SELF.R4[SigmaProp].get;
@@ -96,7 +96,7 @@
       val minPayout = quoteIn * price;                     // nanoergs covering the token price
 
       val validSell =                 // should be true if:
-        baseOut > 0L &&               // 1. the nanoergs difference is positive
+        quoteIn > 0L &&               // 1. the nanoergs difference is positive
         minPayout >= baseOut;         // 2. the incoming tokens are enough to cover the nanoergs out
 
       validSell                       // return the result of the sell validation

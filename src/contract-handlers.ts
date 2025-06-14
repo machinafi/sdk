@@ -1,6 +1,8 @@
 import { ErgoTree } from "@fleet-sdk/core";
 import { hex } from "@fleet-sdk/crypto";
 
+const ID_LENGTH = 64;
+
 // placeholder identifiers for base and quote tokens in contracts
 const TOKEN_ID_PLACEHOLDERS = {
   base: "ba5e7acc110ee6374fe8fa7cd1e9ea4847e44dae4876d865cdffa61b4bdee03b",
@@ -45,7 +47,8 @@ export class E2TOrderContract extends ContractHandler {
   }
 
   getQuoteTokenId(proposition: string): string {
-    return proposition.substring(this.#quotePlaceholder.index, this.#quotePlaceholder.index + 64);
+    const index = this.#quotePlaceholder.index;
+    return proposition.substring(index, index + ID_LENGTH);
   }
 }
 
@@ -70,10 +73,12 @@ export class T2TOrderContract extends ContractHandler {
   }
 
   getBaseTokenId(proposition: string): string {
-    return proposition.substring(this.#basePlaceholder.index, this.#basePlaceholder.index + 64);
+    const index = this.#basePlaceholder.index;
+    return proposition.substring(index, index + ID_LENGTH);
   }
 
   getQuoteTokenId(proposition: string): string {
-    return proposition.substring(this.#quotePlaceholder.index, this.#quotePlaceholder.index + 64);
+    const index = this.#quotePlaceholder.index;
+    return proposition.substring(index, index + ID_LENGTH);
   }
 }

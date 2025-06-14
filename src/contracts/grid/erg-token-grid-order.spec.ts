@@ -531,10 +531,10 @@ function createOrderMocker(ergoTree: string | undefined, tokenId: string) {
   return (p: OrderParams): Box<bigint, R4ToR5Registers> => {
     const candidate = GridOrder.create({
       assets: !p.assets
-        ? { nanoerg: SAFE_MIN_BOX_VALUE, token: { tokenId, amount: 0n } }
+        ? { base: { tokenId: "ERG", amount: SAFE_MIN_BOX_VALUE }, quote: { tokenId, amount: 0n } }
         : {
-            nanoerg: p.assets?.nanoergs ?? 0n,
-            token: { tokenId, amount: p.assets?.tokens ?? 0n }
+            base: { tokenId: "ERG", amount: p.assets?.nanoergs ?? 0n },
+            quote: { tokenId, amount: p.assets?.tokens ?? 0n }
           },
       prices: p.prices ?? { buy: 1n, sell: 1n },
       max: p.max,

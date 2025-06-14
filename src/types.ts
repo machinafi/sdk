@@ -3,18 +3,17 @@ import type {
   ErgoUnsignedInput,
   FleetPlugin,
   OutputBuilder,
-  R4ToR5Registers,
-  TokenAmount
+  R4ToR5Registers
 } from "@fleet-sdk/core";
 
-export type AssetId = "nanoerg" | (string & {});
+export type AssetId = "ERG" | (string & {});
 
 export interface Asset {
   tokenId: AssetId;
   amount: bigint;
 }
 
-export interface Assets {
+export interface ExchangeableAssets {
   base: Asset;
   quote: Asset;
 }
@@ -41,11 +40,6 @@ export interface SellOrder<T = bigint> extends Order<T> {
 export interface PriceRange {
   buy: bigint;
   sell: bigint;
-}
-
-export interface ExchangeableAssets {
-  nanoerg: bigint;
-  token: TokenAmount<bigint>;
 }
 
 /**

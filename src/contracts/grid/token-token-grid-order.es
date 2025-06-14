@@ -43,7 +43,6 @@
     val buying = getVar[Boolean](0).get;    // true == buy, false == sell
     val prices = SELF.R5[Coll[Long]].get;   // [buy, sell] prices
     val childBox = OUTPUTS(childBoxIndex.get);
-    
 
     val selfBaseToken = SELF.tokens.getOrElse(BASE, EMPTY_TOKEN);
     val selfQuoteToken = SELF.tokens.getOrElse(QUOTE, EMPTY_TOKEN);
@@ -65,39 +64,39 @@
       childBox.R4[SigmaProp].get == owner &&                // 5. preserve owner script
       childBox.R5[Coll[Long]].get == prices &&              // 6. preserve prices
       childBox.R6[Coll[Byte]].get == SELF.id;               // 7. bind the child to the parent box
-    
+
     val validExchange = if (buying) {
       // ================================================ //
       // The user is BUYING quote tokens with base tokens //
       // Asset flow: base IN, quote OUT                   //
       // ================================================ //
-      
-      val price = prices(BUY); // buy price in nanoergs
 
-      val baseIn = childBaseAmount - selfBaseAmount;        // nanoergs received from the buyer
+      val price = prices(BUY); // buy price in base token units
+
+      val baseIn = childBaseAmount - selfBaseAmount;        // base tokens received from the buyer
       val quoteOut = selfQuoteAmount - childQuoteAmount;    // tokens paid out to the buyer
-      val requiredBaseAmount = quoteOut * price;            // nanoergs covering the token price
-      
+      val requiredBaseAmount = quoteOut * price;            // base tokens covering the quote token price
+
       val validBuy =                  // should be true if:
-        baseIn > 0L &&                // 1. the incoming nanoergs amount is positive
-        baseIn >= requiredBaseAmount; // 2. the nanoergs are enough to cover the token price
-      
+        baseIn > 0L &&                // 1. the incoming base token amount is positive
+        baseIn >= requiredBaseAmount; // 2. the base token are enough to cover the quote token price
+
       validBuy                        // return the result of the buy validation
     } else {
       // ================================================ //
       // The user is SELLING quote tokens for base tokens //
       // Asset flow: quote IN, base OUT                   //
       // ================================================ //
-      
-      val price = prices(SELL); // sell price
 
-      val baseOut = selfBaseAmount - childBaseAmount;      // nanoergs paid out to the seller
-      val quoteIn = childQuoteAmount - selfQuoteAmount;    // tokens received from the seller
-      val minPayout = quoteIn * price;                     // nanoergs covering the token price
+      val price = prices(SELL); // sell price in base token units
+
+      val baseOut = selfBaseAmount - childBaseAmount;      // base tokens paid out to the seller
+      val quoteIn = childQuoteAmount - selfQuoteAmount;    // quote tokens received from the seller
+      val minPayout = quoteIn * price;                     // base tokens covering the quote token price
 
       val validSell =                 // should be true if:
-        quoteIn > 0L &&               // 1. the nanoergs difference is positive
-        minPayout >= baseOut;         // 2. the incoming tokens are enough to cover the nanoergs out
+        quoteIn > 0L &&               // 1. the base tokens difference is positive
+        minPayout >= baseOut;         // 2. the incoming quote tokens are enough to cover the base tokens out
 
       validSell                       // return the result of the sell validation
     }
@@ -107,7 +106,7 @@
     // ============================= //
     // The user is CLOSING the order //
     // ============================= //
-    
+
     owner
   }
 }

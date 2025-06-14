@@ -25,8 +25,8 @@
   val BUY  = 0;  // buy price and limit index
   val SELL = 1;  // sell price and limit index
 
-  val baseTokenId  = fromBase16("0000000000000000000000000000000000000000000000000000000000000000");
-  val quoteTokenId = fromBase16("0000000000000000000000000000000000000000000000000000000000000001");
+  val baseTokenId  = fromBase16("ba5e7acc110ee6374fe8fa7cd1e9ea4847e44dae4876d865cdffa61b4bdee03b");
+  val quoteTokenId = fromBase16("cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e");
 
   val owner = SELF.R4[SigmaProp].get;
 

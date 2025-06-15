@@ -15,13 +15,15 @@ interface OrderParams {
 }
 
 export const SIGUSD_TOKEN_ID = "fbbaac7337d051c10fc3da0ccb864f4d32d40027551e1c3ea3ce361f39b91e40";
+export const RSN_TOKEN_ID = "8b08cdd5449a9592a9e79711d7d79249d7a03c535d17efaee83e216e80a44c4b";
 export const FAKE_TOKEN_ID = "fb96947d14ab7006d0aaf90383934278517d7b6e300ad4b7cbbd13cfc3e4ca69";
 export const ONE_ERG = 1_000_000_000n; // 1 erg = 1 billion nanoergs
 
 export const REDUCED_TO_FALSE_ERROR = "Script reduced to false";
 export const UNPROVEN_SCHNORR_ERROR = "Tree root should be real but was UnprovenSchnorr";
 
-export const sigUsd = (amount: bigint): Token => ({ tokenId: SIGUSD_TOKEN_ID, amount });
+export const susd = (amount: bigint): Token => ({ tokenId: SIGUSD_TOKEN_ID, amount });
+export const rsn = (amount: bigint): Token => ({ tokenId: RSN_TOKEN_ID, amount });
 export const fakeToken = (amount: bigint): Token => ({ tokenId: FAKE_TOKEN_ID, amount });
 
 function compileScriptIfRequired(script: string): string | undefined {

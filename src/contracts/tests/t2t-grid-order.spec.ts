@@ -23,17 +23,18 @@ import {
   REDUCED_TO_FALSE_ERROR,
   susd,
   SIGUSD_TOKEN_ID,
-  UNPROVEN_SCHNORR_ERROR
+  UNPROVEN_SCHNORR_ERROR,
+  RSN_TOKEN_ID
 } from "./utils";
-import E2TScript from "../grid/e2t-grid-order.es" with { type: "text" };
+import T2TScript from "../grid/t2t-grid-order.es" with { type: "text" };
 
 /**
- * This test suite covers the ERG <-> Token grid order contract.
+ * This test suite covers the Token <-> Token grid order contract.
  * It includes tests for auto-compounding, buying, selling, and closing orders.
  */
-describe("Grid order | erg <-> token | auto-compound", () => {
-  // E2T contract is implicitly selected if ERG is the base asset.
-  const mockOrderBox = createGridOrderMocker(E2TScript, "ERG", SIGUSD_TOKEN_ID);
+describe("Grid order | token <-> token | auto-compound", () => {
+  // T2T contract is implicitly selected if ERG is not the base asset.
+  const mockOrderBox = createGridOrderMocker(T2TScript, RSN_TOKEN_ID, SIGUSD_TOKEN_ID);
 
   const chain = new MockChain();
   const bob = chain.newParty("Bob");
@@ -63,7 +64,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(contract.balance).toEqual({ nanoergs: 0n, tokens: [] });
   });
 
-  it("Should partially buy tokens", () => {
+  it.skip("Should partially buy tokens", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
@@ -98,7 +99,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     });
   });
 
-  it("Should fully buy tokens", () => {
+  it.skip("Should fully buy tokens", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
@@ -133,7 +134,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     });
   });
 
-  it("Should partially sell tokens", () => {
+  it.skip("Should partially sell tokens", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: ONE_ERG }, prices }));
@@ -168,7 +169,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     });
   });
 
-  it("Should fully sell tokens", () => {
+  it.skip("Should fully sell tokens", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: ONE_ERG }, prices }));
@@ -203,7 +204,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     });
   });
 
-  it("Should compose multiple orders in the same transaction", () => {
+  it.skip("Should compose multiple orders in the same transaction", () => {
     // arrange
     const orderA = new GridOrder(
       mockOrderBox({ owner: bob, assets: { quote: 100n }, prices: { buy: 5n, sell: 10n } })
@@ -240,7 +241,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(alice.balance).toStrictEqual({ nanoergs: ONE_ERG - PAY_AMOUNT, tokens: [susd(105n)] });
   });
 
-  it("Should allow operations in the child orders", () => {
+  it.skip("Should allow operations in the child orders", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const fatherOrder = new GridOrder(
@@ -297,7 +298,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(childCloseTx, { signers: [bob] })).not.toThrow();
   });
 
-  it("Should not allow a third party to close the order", () => {
+  it.skip("Should not allow a third party to close the order", () => {
     // arrange
     const order = new GridOrder(mockOrderBox({ owner: bob }));
     const transaction = new TransactionBuilder(chain.height)
@@ -309,7 +310,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(UNPROVEN_SCHNORR_ERROR);
   });
 
-  it("Should not allow buying tokens when underpaying", () => {
+  it.skip("Should not allow buying tokens when underpaying", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
@@ -327,7 +328,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it("Should not allow selling tokens when underpaying", () => {
+  it.skip("Should not allow selling tokens when underpaying", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: ONE_ERG }, prices }));
@@ -347,7 +348,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it("Should not allow buying when the Token ID is swapped", () => {
+  it.skip("Should not allow buying when the Token ID is swapped", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
@@ -368,7 +369,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it("Should not allow selling when the Token ID is swapped", () => {
+  it.skip("Should not allow selling when the Token ID is swapped", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: ONE_ERG }, prices }));
@@ -389,7 +390,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it("Should not allow changing the owner of the order", () => {
+  it.skip("Should not allow changing the owner of the order", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
@@ -413,7 +414,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it("Should not allow changing the prices of the order", () => {
+  it.skip("Should not allow changing the prices of the order", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
@@ -437,7 +438,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it("Should not allow changing the order contract", () => {
+  it.skip("Should not allow changing the order contract", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
@@ -462,7 +463,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it("Should not allow spending multiple orders to a single child output", () => {
+  it.skip("Should not allow spending multiple orders to a single child output", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order1 = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));

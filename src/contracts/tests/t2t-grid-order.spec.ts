@@ -13,7 +13,7 @@ import {
 } from "@fleet-sdk/core";
 import { MockChain } from "@fleet-sdk/mock-chain";
 import { afterEach, describe, expect, it } from "bun:test";
-import { first, type Amount, type Box } from "@fleet-sdk/common";
+import type { Amount, Box } from "@fleet-sdk/common";
 import { GridOrder } from "../../grid-order";
 import {
   createGridOrderMocker,

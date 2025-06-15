@@ -2,9 +2,9 @@ import type { Box, TokenAmount } from "@fleet-sdk/common";
 import { compile } from "@fleet-sdk/compiler";
 import { type R4ToR5Registers, SAFE_MIN_BOX_VALUE } from "@fleet-sdk/core";
 import { type KeyedMockChainParty, mockUTxO } from "@fleet-sdk/mock-chain";
-import { TOKEN_ID_PLACEHOLDERS } from "../../contract-handlers";
 import { GridOrder } from "../../grid-order";
 import type { PriceRange } from "../../types";
+import { QUOTE_TOKEN_ID_PLACEHOLDER } from "../../order-contract";
 
 type Token = TokenAmount<bigint>;
 
@@ -39,16 +39,7 @@ function compileScriptIfRequired(script: string): string | undefined {
 }
 
 export function createGridOrderMocker(script: string, baseId: string, quoteId: string) {
-  let newTree = compileScriptIfRequired(script);
-
-  if (newTree) {
-    newTree =
-      baseId === "ERG"
-        ? newTree.replace(TOKEN_ID_PLACEHOLDERS.quote, quoteId)
-        : newTree
-            .replace(TOKEN_ID_PLACEHOLDERS.base, baseId)
-            .replace(TOKEN_ID_PLACEHOLDERS.quote, quoteId);
-  }
+  const newTree = compileScriptIfRequired(script)?.replace(QUOTE_TOKEN_ID_PLACEHOLDER, quoteId);
 
   return (p: OrderParams): Box<bigint, R4ToR5Registers> => {
     const candidate = GridOrder.create({

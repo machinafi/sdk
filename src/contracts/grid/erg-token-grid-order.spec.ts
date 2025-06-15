@@ -524,7 +524,6 @@ interface OrderParams {
   owner: KeyedMockChainParty;
   assets?: { nanoergs?: bigint; tokens?: bigint };
   prices?: PriceRange;
-  max?: PriceRange;
 }
 
 function createOrderMocker(ergoTree: string | undefined, tokenId: string) {
@@ -537,7 +536,6 @@ function createOrderMocker(ergoTree: string | undefined, tokenId: string) {
             quote: { tokenId, amount: p.assets?.tokens ?? 0n }
           },
       prices: p.prices ?? { buy: 1n, sell: 1n },
-      max: p.max,
       owner: p.owner.address
     })
       .setCreationHeight(1)

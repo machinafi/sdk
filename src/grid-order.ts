@@ -23,7 +23,14 @@ import {
   ErgoUnsignedInput,
   type R4ToR5Registers
 } from "@fleet-sdk/core";
-import type { ActionHandler, BuyOrder, ExchangeableAssets, PriceRange, SellOrder } from "./types";
+import type {
+  ActionHandler,
+  AssetId,
+  BuyOrder,
+  ExchangeableAssets,
+  PriceRange,
+  SellOrder
+} from "./types";
 import { E2TOrderContract, T2TOrderContract } from "./contract-handlers";
 
 export const CONTRACTS = {
@@ -40,22 +47,39 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
 
   readonly #price: PriceRange;
   readonly #assets: ExchangeableAssets;
+  readonly #contract: E2TOrderContract | T2TOrderContract;
 
   constructor(box: Box<Amount, R4ToR5Registers> | BoxCandidate<Amount, R4ToR5Registers>) {
-    if (!CONTRACTS.E2T.validate(box.ergoTree)) throw new Error("Invalid Grid Order contract");
+    if (CONTRACTS.E2T.validate(box.ergoTree)) {
+      this.#contract = CONTRACTS.E2T;
+    } else if (CONTRACTS.T2T.validate(box.ergoTree)) {
+      this.#contract = CONTRACTS.T2T;
+    } else {
+      throw new Error("Invalid Grid Order contract");
+    }
 
-    const quoteTokenId = CONTRACTS.E2T.getQuoteTokenId(box.ergoTree);
-    if (!validateToken(quoteTokenId, box, 0)) throw new Error("Invalid token for the contract");
+    this.#box = ensureUTxOBigInt(box) as Box<bigint, R4ToR5Registers>;
+    const baseId = this.#contract.getBaseId(box.ergoTree);
+    const quoteId = this.#contract.getQuoteId(box.ergoTree);
+
+    if (this.#contract.type) {
+      if (!validateToken(quoteId, box, 0)) throw new Error("Invalid quote token for the contract");
+      this.#assets = {
+        base: { tokenId: baseId, amount: this.#box.value },
+        quote: { tokenId: quoteId, amount: this.#box.assets[0]?.amount ?? 0n }
+      };
+    } else {
+      if (!validateToken(baseId, box, 0)) throw new Error("Invalid base token for the contract");
+      if (!validateToken(quoteId, box, 1)) throw new Error("Invalid quote token for the contract");
+      this.#assets = {
+        base: { tokenId: baseId, amount: this.#box.assets[0]?.amount ?? 0n },
+        quote: { tokenId: quoteId, amount: this.#box.assets[1]?.amount ?? 0n }
+      };
+    }
 
     const prices = SConstant.from<[bigint, bigint]>(box.additionalRegisters.R5);
     if (prices.type.toString() !== "SColl[SLong]") throw new Error("Invalid order box");
-
     this.#price = { buy: prices.data[0], sell: prices.data[1] };
-    this.#box = ensureUTxOBigInt(box) as Box<bigint, R4ToR5Registers>;
-    this.#assets = {
-      base: { tokenId: "nanoerg", amount: this.#box.value },
-      quote: { tokenId: quoteTokenId, amount: this.#box.assets[0]?.amount ?? 0n }
-    };
   }
 
   get price(): PriceRange {
@@ -83,15 +107,25 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;
-      const requiredNanoergs = amount * this.#price.buy;
+      const requiredBase = amount * this.#price.buy;
 
       const input = new ErgoUnsignedInput(box);
-      const output = OutputBuilder.from(box)
-        .setValue(box.value + requiredNanoergs)
-        .addTokens({ tokenId: this.assets.quote.tokenId, amount: amount * -1n }) // fleet will deduct the amount from the existing tokens
-        .setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }); // bind the output to the input box
+      const output = OutputBuilder.from(box); // bind the output to the input box
 
-      const outputsLength = addOutputs(output);
+      if (this.#contract.type === "E2T") {
+        output
+          .setValue(box.value + requiredBase)
+          .addTokens({ tokenId: this.assets.quote.tokenId, amount: amount * -1n }); // fleet will deduct the amount from the existing tokens
+      } else {
+        output
+          .addTokens({ tokenId: this.assets.base.tokenId, amount: requiredBase }) // fleet will sum the amount to the existing tokens
+          .addTokens({ tokenId: this.assets.quote.tokenId, amount: amount * -1n }); // fleet will sum the amount to the existing tokens
+      }
+
+      const outputsLength = addOutputs(
+        output.setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }) // bind the output to the input box
+      );
+
       addInputs(
         input.setContextExtension({
           0: SBool(true), // action, true == buy
@@ -112,15 +146,25 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;
-      const nanoergsPayout = amount * this.#price.sell;
+      const basePayout = amount * this.#price.sell;
 
       const input = new ErgoUnsignedInput(box);
-      const output = OutputBuilder.from(box)
-        .setValue(box.value - nanoergsPayout)
-        .addTokens({ tokenId: this.assets.quote.tokenId, amount }) // fleet will sum the amount to the existing tokens
-        .setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }); // bind the output to the input box
+      const output = OutputBuilder.from(box);
 
-      const outputsLength = addOutputs(output);
+      if (this.#contract.type === "E2T") {
+        output
+          .setValue(box.value - basePayout)
+          .addTokens({ tokenId: this.assets.quote.tokenId, amount }); // fleet will sum the amount to the existing tokens
+      } else {
+        output
+          .addTokens({ tokenId: this.assets.quote.tokenId, amount: basePayout * -1n }) // fleet will deduct the amount from the existing tokens
+          .addTokens({ tokenId: this.assets.quote.tokenId, amount }); // fleet will sum the amount to the existing tokens
+      }
+
+      const outputsLength = addOutputs(
+        output.setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }) // bind the output to the input box
+      );
+
       addInputs(
         input.setContextExtension({
           0: SBool(false), // action, false == sell
@@ -133,26 +177,35 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
   }
 
   static create(options: GridOrderCreationParams): OutputBuilder {
-    if (!options.assets?.base.amount && !options.assets?.quote.amount) {
+    const assets = options.assets;
+    if (assets.quote.tokenId === "ERG") throw new Error("Quote asset cannot be ERG");
+    if (!assets?.base.amount && !assets?.quote.amount)
       throw new Error("At least one of base or target assets must be specified");
-    }
-
-    if (!options.prices.buy || !options.prices.sell) {
+    if (!options.prices.buy || !options.prices.sell)
       throw new Error("Prices must be specified for both buy and sell");
+
+    let builder: OutputBuilder;
+    if (assets.base.tokenId === "ERG") {
+      const contract = CONTRACTS.E2T.new(assets.quote.tokenId);
+      const baseAmount = assets.base.amount || estimateMinBoxValue();
+
+      builder = new OutputBuilder(baseAmount, contract).addTokens(assets.quote);
+    } else {
+      const contract = CONTRACTS.T2T.new(assets.base.tokenId, assets.quote.tokenId);
+
+      builder = new OutputBuilder(estimateMinBoxValue(), contract)
+        .addTokens(assets.base)
+        .addTokens(assets.quote);
     }
 
-    const contract = CONTRACTS.E2T.new(options.assets.quote.tokenId);
-
-    return new OutputBuilder(options.assets.base.amount || estimateMinBoxValue(), contract)
-      .addTokens(options.assets.quote)
-      .setAdditionalRegisters({
-        R4: SSigmaProp(SGroupElement(first(options.owner.getPublicKeys()))),
-        R5: SColl(SLong, [options.prices.buy, options.prices.sell])
-      });
+    return builder.setAdditionalRegisters({
+      R4: SSigmaProp(SGroupElement(first(options.owner.getPublicKeys()))),
+      R5: SColl(SLong, [options.prices.buy, options.prices.sell])
+    });
   }
 }
 
-function validateToken(tokenId: string, box: BoxCandidate<Amount>, index: number): boolean {
+function validateToken(tokenId: AssetId, box: BoxCandidate<Amount>, index: number): boolean {
   const token = box.assets[index];
   return !token || token.tokenId === tokenId;
 }
@@ -161,5 +214,4 @@ export interface GridOrderCreationParams {
   owner: ErgoAddress;
   assets: ExchangeableAssets;
   prices: PriceRange;
-  max?: PriceRange;
 }

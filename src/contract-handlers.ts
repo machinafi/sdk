@@ -1,7 +1,10 @@
 import { ErgoTree } from "@fleet-sdk/core";
 import { hex } from "@fleet-sdk/crypto";
+import type { AssetId } from "./types";
 
 const ID_LENGTH = 64;
+
+export type ContractType = "E2T" | "T2T";
 
 // placeholder identifiers for base and quote tokens in contracts
 const TOKEN_ID_PLACEHOLDERS = {
@@ -27,6 +30,11 @@ abstract class ContractHandler {
     this.template = hex.encode(new ErgoTree(proposition).template);
   }
 
+  abstract get type(): ContractType;
+
+  abstract getBaseId(proposition: string): AssetId;
+  abstract getQuoteId(proposition: string): AssetId;
+
   validate(proposition: string): boolean {
     return proposition?.length === this.proposition.length && proposition.endsWith(this.template);
   }
@@ -42,11 +50,19 @@ export class E2TOrderContract extends ContractHandler {
     this.#quotePlaceholder = { id: placeholder, index: proposition.indexOf(placeholder) };
   }
 
+  get type(): ContractType {
+    return "E2T";
+  }
+
   new(tokenId: string): string {
     return this.proposition.replace(this.#quotePlaceholder.id, tokenId);
   }
 
-  getQuoteTokenId(proposition: string): string {
+  getBaseId(): AssetId {
+    return "ERG";
+  }
+
+  getQuoteId(proposition: string): string {
     const index = this.#quotePlaceholder.index;
     return proposition.substring(index, index + ID_LENGTH);
   }
@@ -66,18 +82,22 @@ export class T2TOrderContract extends ContractHandler {
     this.#quotePlaceholder = { id: quotePlaceholder, index: proposition.indexOf(quotePlaceholder) };
   }
 
+  get type(): ContractType {
+    return "T2T";
+  }
+
   new(baseTokenId: string, quoteTokenId: string): string {
     return this.proposition
       .replace(this.#basePlaceholder.id, baseTokenId)
       .replace(this.#quotePlaceholder.id, quoteTokenId);
   }
 
-  getBaseTokenId(proposition: string): string {
+  getBaseId(proposition: string): string {
     const index = this.#basePlaceholder.index;
     return proposition.substring(index, index + ID_LENGTH);
   }
 
-  getQuoteTokenId(proposition: string): string {
+  getQuoteId(proposition: string): string {
     const index = this.#quotePlaceholder.index;
     return proposition.substring(index, index + ID_LENGTH);
   }

@@ -22,10 +22,10 @@
   // indexes
   val BASE  = 0; // base token index
   val QUOTE = 1; // quote token index
-  val BUY  = 0;  // buy price and limit index
-  val SELL = 1;  // sell price and limit index
+  val BUY   = 0; // buy price and limit index
+  val SELL  = 1; // sell price and limit index
 
-  val baseTokenId  = fromBase16("ba5e7acc110ee6374fe8fa7cd1e9ea4847e44dae4876d865cdffa61b4bdee03b");
+  // val baseTokenId  = fromBase16("ba5e7acc110ee6374fe8fa7cd1e9ea4847e44dae4876d865cdffa61b4bdee03b");
   val quoteTokenId = fromBase16("cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e");
 
   val owner = SELF.R4[SigmaProp].get;
@@ -44,22 +44,26 @@
     val prices = SELF.R5[Coll[Long]].get;   // [buy, sell] prices
     val childBox = OUTPUTS(childBoxIndex.get);
 
-    val selfBaseToken = SELF.tokens.getOrElse(BASE, EMPTY_TOKEN);
-    val selfQuoteToken = SELF.tokens.getOrElse(QUOTE, EMPTY_TOKEN);
-    val childBaseToken = childBox.tokens.getOrElse(BASE, EMPTY_TOKEN);
-    val childQuoteToken = childBox.tokens.getOrElse(QUOTE, EMPTY_TOKEN);
+    val selfBase = SELF.tokens(BASE);
+    val childBase = childBox.tokens(BASE);
+    
+    val selfQuote = SELF.tokens.getOrElse(QUOTE, EMPTY_TOKEN);
+    val childQuote = childBox.tokens.getOrElse(QUOTE, EMPTY_TOKEN);
 
-    val selfBaseAmount = selfBaseToken._2;
-    val selfQuoteAmount = selfQuoteToken._2;
-    val childBaseAmount = childBaseToken._2;
-    val childQuoteAmount = childQuoteToken._2;
+    val selfBaseAmount = selfBase._2;
+    val selfQuoteAmount = selfQuote._2;
+    val childBaseAmount = childBase._2;
+    val childQuoteAmount = childQuote._2;
 
-    val validBaseTokenId = childBaseToken._1 == baseTokenId || childBaseToken._1 == EMPTY_TOKEN._1;
-    val validQuoteTokenId = childQuoteToken._1 == quoteTokenId || childQuoteToken._1 == EMPTY_TOKEN._1;
+    // at least one unit of the base token must be present to avoid tokens misplacement
+    val validBaseTokenId = selfBase._1 == childBase._1;
+    // all quote tokens can be sold by the contract, so it can be empty
+    val validQuoteTokenId = childQuote._1 == quoteTokenId || childQuote._1 == EMPTY_TOKEN._1;
+
     val validRecreation =                                   // should be true if:
       childBox.propositionBytes == SELF.propositionBytes && // 1. preserve proposition
       childBox.value == SELF.value &&                       // 2. preserve nanoergs value
-      validBaseTokenId &&                                   // 3. preserve base token ID, if any
+      validBaseTokenId &&                                   // 3. preserve base token ID
       validQuoteTokenId &&                                  // 4. preserve quote token ID, if any
       childBox.R4[SigmaProp].get == owner &&                // 5. preserve owner script
       childBox.R5[Coll[Long]].get == prices &&              // 6. preserve prices
@@ -90,9 +94,9 @@
 
       val price = prices(SELL); // sell price in base token units
 
-      val baseOut = selfBaseAmount - childBaseAmount;      // base tokens paid out to the seller
-      val quoteIn = childQuoteAmount - selfQuoteAmount;    // quote tokens received from the seller
-      val minPayout = quoteIn * price;                     // base tokens covering the quote token price
+      val baseOut = selfBaseAmount - childBaseAmount;       // base tokens paid out to the seller
+      val quoteIn = childQuoteAmount - selfQuoteAmount;     // quote tokens received from the seller
+      val minPayout = quoteIn * price;                      // base tokens covering the quote token price
 
       val validSell =                 // should be true if:
         quoteIn > 0L &&               // 1. the base tokens difference is positive

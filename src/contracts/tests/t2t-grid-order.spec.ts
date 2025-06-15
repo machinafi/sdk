@@ -24,7 +24,8 @@ import {
   susd,
   SIGUSD_TOKEN_ID,
   UNPROVEN_SCHNORR_ERROR,
-  RSN_TOKEN_ID
+  RSN_TOKEN_ID,
+  rsn
 } from "./utils";
 import T2TScript from "../grid/t2t-grid-order.es" with { type: "text" };
 
@@ -34,7 +35,7 @@ import T2TScript from "../grid/t2t-grid-order.es" with { type: "text" };
  */
 describe("Grid order | token <-> token | auto-compound", () => {
   // T2T contract is implicitly selected if ERG is not the base asset.
-  const mockOrderBox = createGridOrderMocker(T2TScript, RSN_TOKEN_ID, SIGUSD_TOKEN_ID);
+  const mockOrderBox = createGridOrderMocker(T2TScript, SIGUSD_TOKEN_ID, RSN_TOKEN_ID);
 
   const chain = new MockChain();
   const bob = chain.newParty("Bob");
@@ -45,9 +46,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
 
   it("Should close the order and withdrawal funds", () => {
     // arrange
-    const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: ONE_ERG, quote: 100n } })
-    );
+    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: 200n, quote: 100n } }));
 
     const transaction = new TransactionBuilder(chain.height)
       .extend(order.close()) // close the order
@@ -60,23 +59,25 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // assert
     expect(contract.utxos.length).toBe(0);
     expect(success).toBe(true);
-    expect(bob.balance).toEqual({ nanoergs: ONE_ERG, tokens: [susd(100n)] });
+    expect(bob.balance).toEqual({ nanoergs: order.box.value, tokens: [susd(200n), rsn(100n)] });
     expect(contract.balance).toEqual({ nanoergs: 0n, tokens: [] });
   });
 
-  it.skip("Should partially buy tokens", () => {
+  it("Should partially buy quote tokens", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
-    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
+    const order = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { base: 200n, quote: 100n }, prices })
+    );
 
     contract.addUTxOs(order.box);
-    alice.addBalance({ nanoergs: ONE_ERG });
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [susd(100n)] }); // Alice has 100 susd tokens
 
-    const BUY_AMOUNT = 10n; // buying 10 tokens
-    const PAY_AMOUNT = BUY_AMOUNT * prices.buy; // 10 * 5 = 50 nanoergs
+    const BUY_AMOUNT = 10n; // buying 10 RSN
+    const PAY_AMOUNT = BUY_AMOUNT * prices.buy; // 10 * 5 = 50 SigUSD
 
     const transaction = new TransactionBuilder(chain.height)
-      .extend(order.buy(BUY_AMOUNT)) // buy 10 tokens
+      .extend(order.buy(BUY_AMOUNT)) // buy
       .from(alice.utxos)
       .sendChangeTo(alice.address)
       .build();
@@ -89,13 +90,16 @@ describe("Grid order | token <-> token | auto-compound", () => {
 
     expect(contract.utxos.length).toBe(1);
     expect(contract.balance).toStrictEqual({
-      nanoergs: order.box.value + PAY_AMOUNT, // 1_000_000_000 + 50 = 1_000_000_050 nanoergs in the contract
-      tokens: [susd(first(order.box.assets).amount - BUY_AMOUNT)] // 100 - 10 = 90 tokens left in the order
+      nanoergs: order.box.value, // erg value remains the same
+      tokens: [
+        susd(order.assets.base.amount + PAY_AMOUNT), // contract now has 100 + 50 = 150 SigUSD
+        rsn(order.assets.quote.amount - BUY_AMOUNT) // contract now has 200 - 10 = 190 RSN left
+      ]
     });
 
     expect(alice.balance).toStrictEqual({
-      nanoergs: ONE_ERG - PAY_AMOUNT, // 1_000_000_000 - 50 = 999_999_950 nanoergs left
-      tokens: [susd(BUY_AMOUNT)] // 10 tokens bought
+      nanoergs: ONE_ERG,
+      tokens: [susd(100n - PAY_AMOUNT), rsn(BUY_AMOUNT)]
     });
   });
 

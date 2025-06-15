@@ -27,7 +27,12 @@ import {
 } from "./utils";
 import E2TScript from "../grid/e2t-grid-order.es" with { type: "text" };
 
+/**
+ * This test suite covers the ERG <-> Token grid order contract.
+ * It includes tests for auto-compounding, buying, selling, and closing orders.
+ */
 describe("Grid order | erg <-> token | auto-compound", () => {
+  // The GridOrder entity implicitly uses the E2T contract, if ERG is the base asset.
   const mockOrderBox = createGridOrderMocker(E2TScript, "ERG", SIGUSD_TOKEN_ID);
 
   const chain = new MockChain();

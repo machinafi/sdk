@@ -62,7 +62,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
     const baseId = this.#contract.getBaseId(box.ergoTree);
     const quoteId = this.#contract.getQuoteId(box.ergoTree);
 
-    if (this.#contract.type) {
+    if (this.#contract.type === "E2T") {
       if (!validateToken(quoteId, box, 0)) throw new Error("Invalid quote token for the contract");
       this.#assets = {
         base: { tokenId: baseId, amount: this.#box.value },

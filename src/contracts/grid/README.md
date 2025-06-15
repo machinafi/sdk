@@ -79,7 +79,7 @@ flowchart TD
   - Only the owner (as set in `R4`) can close the order and withdraw assets.
 
 ## Unit Tests
-Contract unit tests are located in the [erg-token-grid-order.spec.ts](/src/contracts/grid/erg-token-grid-order.spec.ts) file and ensure the correctness of the actions and checks.
+Contract unit tests are located in the [../tests/e2t-grid-order.spec.ts](/src/contracts/tests/e2t-grid-order.spec.ts) file and ensure the correctness of the actions and checks.
 
 ### Running Tests
 
@@ -88,7 +88,7 @@ Contract unit tests are located in the [erg-token-grid-order.spec.ts](/src/contr
 bun install
 
 # run contract unit tests
-bun test:unit erg-token-grid-order
+bun test:unit e2t-grid-order
 ```
 
 ## Security Considerations

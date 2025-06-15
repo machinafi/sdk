@@ -7,7 +7,7 @@ const ID_LENGTH = 64;
 export type ContractType = "E2T" | "T2T";
 
 // placeholder identifiers for base and quote tokens in contracts
-const TOKEN_ID_PLACEHOLDERS = {
+export const TOKEN_ID_PLACEHOLDERS = {
   base: "ba5e7acc110ee6374fe8fa7cd1e9ea4847e44dae4876d865cdffa61b4bdee03b",
   quote: "cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e"
 };

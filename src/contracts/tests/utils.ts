@@ -22,7 +22,7 @@ export const ONE_ERG = 1_000_000_000n; // 1 erg = 1 billion nanoergs
 export const REDUCED_TO_FALSE_ERROR = "Script reduced to false";
 export const UNPROVEN_SCHNORR_ERROR = "Tree root should be real but was UnprovenSchnorr";
 
-export const susd = (amount: bigint): Token => ({ tokenId: SIGUSD_TOKEN_ID, amount });
+export const sigusd = (amount: bigint): Token => ({ tokenId: SIGUSD_TOKEN_ID, amount });
 export const rsn = (amount: bigint): Token => ({ tokenId: RSN_TOKEN_ID, amount });
 export const fakeToken = (amount: bigint): Token => ({ tokenId: FAKE_TOKEN_ID, amount });
 

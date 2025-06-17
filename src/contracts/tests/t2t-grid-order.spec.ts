@@ -140,7 +140,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     });
   });
 
-  it("Should partially sell tokens", () => {
+  it("Should partially sell quote tokens", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(

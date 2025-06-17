@@ -168,7 +168,11 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     });
   });
 
-  it("Should fully sell tokens", () => {
+  it.todo("Should fully sell tokens", () => {
+    // todo: this test is not fully correct, it should be fixed
+    // fully selling in this context means the we need to sell maximum amount of
+    // tokens the contract can pay for, not all tokens Alice has.
+
     // arrange
     const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: ONE_ERG }, prices }));

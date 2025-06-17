@@ -18,7 +18,7 @@
    * Sell                    Sell quote tokens for base tokens at predefined price
    * Close                   Close the order and withdrawal assets
    */
-  
+
   // indexes
   val BASE  = 0; // base token index
   val QUOTE = 1; // quote token index
@@ -46,7 +46,7 @@
 
     val selfBase = SELF.tokens(BASE);
     val childBase = childBox.tokens(BASE);
-    
+
     val selfQuote = SELF.tokens.getOrElse(QUOTE, EMPTY_TOKEN);
     val childQuote = childBox.tokens.getOrElse(QUOTE, EMPTY_TOKEN);
 

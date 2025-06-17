@@ -94,6 +94,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
    * @param amount - The amount of token units to buy.
    */
   buy(amount: bigint, hander?: ActionHandler): FleetPlugin {
+    // TODO: add amounts validation
     if (amount <= 0n) throw new Error("Amount must be greater than zero");
 
     return ({ addInputs, addOutputs }) => {
@@ -133,6 +134,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
    * @param amount - The amount of token units to sell.
    */
   sell(amount: bigint, hander?: ActionHandler): FleetPlugin {
+    // TODO: add amounts validation
     if (amount <= 0n) throw new Error("Amount must be greater than zero");
 
     return ({ addInputs, addOutputs }) => {

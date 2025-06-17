@@ -148,7 +148,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
           .addTokens({ tokenId: this.assets.quote.tokenId, amount }); // fleet will sum the amount to the existing tokens
       } else {
         output
-          .addTokens({ tokenId: this.assets.quote.tokenId, amount: basePayout * -1n }) // fleet will deduct the amount from the existing tokens
+          .addTokens({ tokenId: this.assets.base.tokenId, amount: basePayout * -1n }) // fleet will deduct the amount from the existing tokens
           .addTokens({ tokenId: this.assets.quote.tokenId, amount }); // fleet will sum the amount to the existing tokens
       }
 

@@ -168,19 +168,15 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     });
   });
 
-  it.todo("Should fully sell tokens", () => {
-    // todo: this test is not fully correct, it should be fixed
-    // fully selling in this context means the we need to sell maximum amount of
-    // tokens the contract can pay for, not all tokens Alice has.
-
+  it("Should fully sell tokens", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n }; // buy at 5 nanoergs per token, sell at 10 nanoergs per token
-    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: ONE_ERG }, prices }));
+    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: 1000n }, prices }));
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n)] }); // Alice has 100 tokens to sell
 
-    const SELL_AMOUNT = 100n; // selling all 100 tokens
+    const SELL_AMOUNT = 99n; // selling all 100 tokens
     const PAY_AMOUNT = SELL_AMOUNT * prices.sell; // 100 * 10 = 1000 nanoergs
 
     const transaction = new TransactionBuilder(chain.height)
@@ -203,7 +199,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
 
     expect(alice.balance).toStrictEqual({
       nanoergs: ONE_ERG + PAY_AMOUNT,
-      tokens: [] // Alice has no tokens left
+      tokens: [sigusd(1n)] // alice has 1 token left after selling 99
     });
   });
 

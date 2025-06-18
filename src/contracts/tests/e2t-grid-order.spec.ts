@@ -446,10 +446,7 @@ describe("Grid order | erg <-> token | auto-compound", () => {
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
 
     const transaction = new TransactionBuilder(chain.height)
-      .extend(
-        // attempt to buy tokens but maliciously replace the token ID
-        order.buy(10n)
-      )
+      .extend(order.buy(10n))
       .from(alice.utxos)
       .sendChangeTo(alice.address)
       .build()

@@ -311,7 +311,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     expect(() => chain.execute(childCloseTx, { signers: [bob] })).not.toThrow();
   });
 
-  it.skip("Should not allow a third party to close the order", () => {
+  it("Should not allow a third party to close the order", () => {
     // arrange
     const order = new GridOrder(mockOrderBox({ owner: bob }));
     const transaction = new TransactionBuilder(chain.height)
@@ -451,19 +451,18 @@ describe("Grid order | token <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it.skip("Should not allow changing the order contract", () => {
+  it("Should not allow changing the order contract", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
-    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
+    const order = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+    );
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
 
     const transaction = new TransactionBuilder(chain.height)
-      .extend(
-        // attempt to buy tokens but maliciously replace the token ID
-        order.buy(10n)
-      )
+      .extend(order.buy(10n))
       .from(alice.utxos)
       .sendChangeTo(alice.address)
       .build()

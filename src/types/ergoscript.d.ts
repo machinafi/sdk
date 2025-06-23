@@ -1,4 +1,4 @@
-declare module "*.es" {
+declare module "*.es?raw" {
   const content: string;
   export default content;
 }

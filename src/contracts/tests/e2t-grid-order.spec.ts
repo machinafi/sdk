@@ -12,7 +12,7 @@ import {
   type R4ToR5Registers
 } from "@fleet-sdk/core";
 import { MockChain } from "@fleet-sdk/mock-chain";
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "vitest";
 import { first, type Amount, type Box } from "@fleet-sdk/common";
 import { GridOrder } from "../../grid-order";
 import {
@@ -25,7 +25,7 @@ import {
   SIGUSD_TOKEN_ID,
   UNPROVEN_SCHNORR_ERROR
 } from "./utils";
-import E2TScript from "../grid/e2t-grid-order.es" with { type: "text" };
+import E2TScript from "../grid/e2t-grid-order.es?raw";
 
 /**
  * This test suite covers the ERG <-> Token grid order contract.

@@ -12,7 +12,7 @@ import {
   type R4ToR5Registers
 } from "@fleet-sdk/core";
 import { MockChain } from "@fleet-sdk/mock-chain";
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "vitest";
 import type { Amount, Box } from "@fleet-sdk/common";
 import { GridOrder } from "../../grid-order";
 import {
@@ -27,7 +27,7 @@ import {
   RSN_TOKEN_ID,
   rsn
 } from "./utils";
-import T2TScript from "../grid/t2t-grid-order.es" with { type: "text" };
+import T2TScript from "../grid/t2t-grid-order.es?raw";
 
 /**
  * This test suite covers the Token <-> Token grid order contract.

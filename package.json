@@ -4,21 +4,22 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test:unit": "bun test",
-    "watch:unit": "bun test --watch",
-    "watch:unit:recompile": "RECOMPILE=true bun test --watch"
+    "test:unit": "vitest --run",
+    "watch:unit": "vitest",
+    "watch:unit:recompile": "RECOMPILE=true vitest"
   },
   "dependencies": {
     "@fleet-sdk/common": "^0.10.0",
     "@fleet-sdk/core": "^0.10.0",
-    "@fleet-sdk/serializer": "^0.10.0",
-    "@fleet-sdk/crypto": "^0.10.0"
+    "@fleet-sdk/crypto": "^0.10.0",
+    "@fleet-sdk/serializer": "^0.10.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@fleet-sdk/compiler": "^0.10.0",
     "@fleet-sdk/mock-chain": "^0.10.0",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "vitest": "^3.2.4"
   },
   "peerDependencies": {
     "typescript": "^5"

@@ -336,19 +336,23 @@ describe("Grid order | token <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(UNPROVEN_SCHNORR_ERROR);
   });
 
-  it.skip("Should not allow buying tokens when underpaying", () => {
+  it("Should not allow buying tokens when underpaying", () => {
     // arrange
-    const prices = { buy: 5n, sell: 10n };
-    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
+    const prices = { buy: 2n, sell: 10n };
+    const order = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+    );
 
     contract.addUTxOs(order.box);
-    alice.addBalance({ nanoergs: ONE_ERG });
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n)] });
 
     const transaction = new TransactionBuilder(chain.height)
-      .extend(order.buy(10n, (output) => output.setValue(output.value - 1n))) // trying to pay 1 nanoerg less
+      .extend(order.buy(10n, (output) => output.addTokens(sigusd(-1n)))) // trying to pay 1 sigusd less
       .from(alice.utxos)
       .sendChangeTo(alice.address)
       .build();
+
+    expect(transaction.outputs[0]?.assets[0]?.amount).toBe(20n); // should have 20 sigusd instead of 21
 
     // act
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
@@ -360,7 +364,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: ONE_ERG }, prices }));
 
     contract.addUTxOs(order.box);
-    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n)] });
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [rsn(100n)] });
 
     const transaction = new TransactionBuilder(chain.height)
       .extend(order.sell(10n, (output) => output.addTokens(sigusd(-1n)))) // tries to sell 10 tokens but only sends 9

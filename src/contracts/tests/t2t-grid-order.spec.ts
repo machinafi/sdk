@@ -358,21 +358,21 @@ describe("Grid order | token <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it.skip("Should not allow selling tokens when underpaying", () => {
+  it("Should not allow selling tokens when underpaying", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
-    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: ONE_ERG }, prices }));
+    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: 500n }, prices }));
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [rsn(100n)] });
 
     const transaction = new TransactionBuilder(chain.height)
-      .extend(order.sell(10n, (output) => output.addTokens(sigusd(-1n)))) // tries to sell 10 tokens but only sends 9
+      .extend(order.sell(10n, (output) => output.addTokens(rsn(-1n)))) // tries to sell 10 tokens but only sends 9
       .from(alice.utxos)
       .sendChangeTo(alice.address)
       .build();
 
-    expect(transaction.outputs[0]?.assets[0]?.amount).toBe(9n); // should have 9 tokens instead of 10
+    expect(transaction.outputs[0]?.assets[1]?.amount).toBe(9n); // should have 9 tokens instead of 10
 
     // act
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);

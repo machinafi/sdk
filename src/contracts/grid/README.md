@@ -11,36 +11,6 @@ These are auto-compounding two-way grid order contracts for ERG to TOKEN (`E2T`)
 - **Owner withdrawal:** The owner can close the order and withdraw assets at any time.
 - **Composable:** Multiple orders can be used in the same transaction.
 
-## Registers & Context Variables
-
-| Register         | Purpose                                                                   |
-| ---------------- | ------------------------------------------------------------------------- |
-| `R4: SigmaProp`  | Owner’s `SigmaProp` script (defines who can close/withdraw)               |
-| `R5: Coll[Long]` | `[buy, sell]` prices in nanoergs per token unit                           |
-| `R6: Coll[Byte]` | Spent `Input ID` (prevents spending multiple orders with a single output) |
-
-| Context Variable | Purpose                              |
-| ---------------- | ------------------------------------ |
-| `0: Boolean`     | Action: `true` = Buy, `false` = Sell |
-| `1: Int`         | Recreated output index               |
-
-## Tokens
-
-Tokens structure differs between `E2T` and `T2T` contracts.
-
-### ERG to Token (`E2T`)
-
-| Index | Purpose                   |
-| ----- | ------------------------- |
-| `0`   | Quote token, can be empty |
-
-### Token to Token (`T2T`)
-
-| Index | Purpose                                    |
-| ----- | ------------------------------------------ |
-| `0`   | Base token, must contain at least one unit |
-| `1`   | Quote token, can be empty                  |
-
 ## Contracts Logic
 
 Both contracts share the same logic
@@ -57,6 +27,38 @@ Both contracts share the same logic
 
 - **Close Order:**
   - Only the owner (as set in `R4`) can close the order and withdraw assets.
+
+## Contracts Parameters
+
+### Registers & Context Variables
+
+| Register         | Purpose                                                                   |
+| ---------------- | ------------------------------------------------------------------------- |
+| `R4: SigmaProp`  | Owner’s `SigmaProp` script (defines who can close/withdraw)               |
+| `R5: Coll[Long]` | `[buy, sell]` prices in nanoergs per token unit                           |
+| `R6: Coll[Byte]` | Spent `Input ID` (prevents spending multiple orders with a single output) |
+
+| Context Variable | Purpose                              |
+| ---------------- | ------------------------------------ |
+| `0: Boolean`     | Action: `true` = Buy, `false` = Sell |
+| `1: Int`         | Recreated output index               |
+
+### Tokens
+
+Tokens structure differs between `E2T` and `T2T` contracts.
+
+#### ERG to Token (`E2T`)
+
+| Index | Purpose                   |
+| ----- | ------------------------- |
+| `0`   | Quote token, can be empty |
+
+#### Token to Token (`T2T`)
+
+| Index | Purpose                                    |
+| ----- | ------------------------------------------ |
+| `0`   | Base token, must contain at least one unit |
+| `1`   | Quote token, can be empty                  |
 
 ## Unit Tests
 

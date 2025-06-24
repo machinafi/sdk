@@ -378,10 +378,12 @@ describe("Grid order | token <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it.skip("Should not allow buying when the Token ID is swapped", () => {
+  it("Should not allow buying when the Token ID is swapped", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
-    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
+    const order = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+    );
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
@@ -399,17 +401,42 @@ describe("Grid order | token <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it.skip("Should not allow selling when the Token ID is swapped", () => {
+  it("Should not allow selling when the quote Token ID is swapped", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
-    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { base: ONE_ERG }, prices }));
+    const order = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { base: 101n, quote: 100n }, prices })
+    );
 
     contract.addUTxOs(order.box);
-    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(100n)] });
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(1000n), rsn(100n)] });
 
     const transaction = new TransactionBuilder(chain.height)
       .extend(
-        // attempt to sell tokens but maliciously replace the token ID
+        // attempt to sell tokens but maliciously replace the quote token ID
+        order.sell(10n, (output) => output.eject((x) => (x.tokens.at(1).tokenId = FAKE_TOKEN_ID)))
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should not allow selling when the base Token ID is swapped", () => {
+    // arrange
+    const prices = { buy: 5n, sell: 10n };
+    const order = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { base: 101n, quote: 100n }, prices })
+    );
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(100n), rsn(100n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        // attempt to sell tokens but maliciously replace the base token ID
         order.sell(10n, (output) => output.eject((x) => (x.tokens.at(0).tokenId = FAKE_TOKEN_ID)))
       )
       .from(alice.utxos)

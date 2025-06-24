@@ -9,6 +9,9 @@
    * R5: Coll[Long]          [buy, sell] prices in nanoergs
    * R6: Coll[Byte]          Spent input ID, prevents spending multiple inputs with a single output
    *
+   * [[ Tokens ]]
+   * 0: QuoteToken?          The quote token, can be empty
+   *
    * [[ Context variables ]]
    * 0: Boolean              Action, true == buy, false == sell
    * 1: Int                  Recreated output index
@@ -17,6 +20,7 @@
    * Buy                     Buy tokens with ERG at predefined price
    * Sell                    Sell tokens for ERG at predefined price
    * Close                   Close the order and withdrawal assets
+   *
    */
 
   // indexes

@@ -1,8 +1,8 @@
-# Auto-Compounding Two-Way Grid Order Contract (ERG & TOKEN)
+# Auto-Compounding Two-Way Grid Order Contracts
 
 ## Overview
 
-This is an auto-compounding two-way grid order contract for ERG and TOKEN. The contract allows users to create grid orders for simultaneously buying and selling tokens at predefined prices.
+These are auto-compounding two-way grid order contracts for ERG to TOKEN (`E2T`) and TOKEN to TOKEN (`T2T`). The contracts allow users to create grid orders for simultaneously buying and selling tokens at predefined prices.
 
 ## Key Features
 
@@ -24,62 +24,43 @@ This is an auto-compounding two-way grid order contract for ERG and TOKEN. The c
 | `0: Boolean`     | Action: `true` = Buy, `false` = Sell |
 | `1: Int`         | Recreated output index               |
 
-## Flowchart
+## Tokens
 
-The contract flow is visually described below. This flowchart summarizes the checks and logic for each action (Buy, Sell, Close).
+Tokens structure differs between `E2T` and `T2T` contracts.
 
-```mermaid
-flowchart TD
-    Start["User interacts with contract"] --> ActionType{"Is this a trade or close action?"}
-    ActionType -- Trade --> GetVars["Extract context variables: action type, output index"]
-    GetVars --> TradeType{"Is action Buy or Sell?"}
-    TradeType -- Buy --> BuyPrice["Get buy price from R5"]
-    BuyPrice --> BuyCalc["Calculate ERG received and tokens sent"]
-    BuyCalc --> BuyCheck{"Did user send ERG? (nanoergsIn > 0)"}
-    BuyCheck -- No --> Refused["❌ Rejected"]
-    BuyCheck -- Yes --> BuyCheck1{"Is received ERG enough to pay for tokens? (nanoergsIn &gt;= requiredNanoergs)"}
-    BuyCheck1 -- No --> Refused
-    BuyCheck1 -- Yes --> BuyCheck2{"Are all tokens bought? (no tokens left in the order box)"}
-    BuyCheck2 -- Yes --> FinalContractCheck{"Is contract state preserved and replicated output correctly bound to input?"}
-    BuyCheck2 -- No --> TokenIdCheck{"Are tokens valid? (same TokenID as expected by the contract)"}
-    TradeType -- Sell --> SellPrice["Get sell price from R5"]
-    SellPrice --> SellCalc["Calculate ERG sent and tokens received"]
-    SellCalc --> SellCheck1{"Is ERG paid out? (nanoergsOut > 0)"}
-    SellCheck1 -- No --> Refused
-    SellCheck1 -- Yes --> SellCheck2{"Are received tokens enough to pay for ERG? (minPayout &gt;= nanoergsOut)"}
-    SellCheck2 -- No --> Refused
-    SellCheck2 -- Yes --> TokenIdCheck
-    TokenIdCheck -- No --> Refused
-    TokenIdCheck -- Yes --> FinalContractCheck
-    ActionType -- Close --> CloseOrder["Owner wants to withdraw all funds"]
-    CloseOrder --> OwnerCheck{"Is user contract owner (R4)?"}
-    OwnerCheck -- No --> Refused
-    OwnerCheck -- Yes --> Success["✅ Successful"]
-    FinalContractCheck -- No --> Refused
-    FinalContractCheck -- Yes --> Success
-     Refused:::Rose
-     Success:::Aqua
-    classDef Rose stroke-width:1px, stroke-dasharray:none, stroke:#FF5978, fill:#FFDFE5, color:#8E2236, font-weight: bold
-    classDef Aqua stroke-width:1px, stroke-dasharray:none, stroke:#46EDC8, fill:#DEFFF8, color:#378E7A, font-weight: bold
-```
+### ERG to Token (`E2T`)
 
-## Contract Logic
+| Index | Purpose                   |
+| ----- | ------------------------- |
+| `0`   | Quote token, can be empty |
+
+### Token to Token (`T2T`)
+
+| Index | Purpose                                    |
+| ----- | ------------------------------------------ |
+| `0`   | Base token, must contain at least one unit |
+| `1`   | Quote token, can be empty                  |
+
+## Contracts Logic
+
+Both contracts share the same logic
 
 - **Trading:**
 
   - Extract context variables to determine action and output.
+  - Ensure contract state and token IDs are preserved.
+  - Ensure that outputs are bound to parent inputs to prevent **input aggregation attacks**.
   - For **Buy**:
-    - Validate ERG sent is enough for requested tokens at predefined buy price.
-    - Ensure contract state and token IDs are preserved.
+    - Validate if the **base** assets received from the user are enough to cover the requested **quote** assets at the predefined **buy** price.
   - For **Sell**:
-    - Validate tokens sent are enough for ERG received at predefined sell price.
-    - Ensure contract state and token IDs are preserved.
+    - Validate if the **quote** assets received from the user are enough to cover the requested **base** assets at the predefined **sell** price.
 
 - **Close Order:**
   - Only the owner (as set in `R4`) can close the order and withdraw assets.
 
 ## Unit Tests
-Contract unit tests are located in the [../tests/e2t-grid-order.spec.ts](/src/contracts/tests/e2t-grid-order.spec.ts) file and ensure the correctness of the actions and checks.
+
+Contracts unit tests ensure the correctness of the actions and are located at the [../tests/](/src/contracts/tests/) directory.
 
 ### Running Tests
 
@@ -88,14 +69,5 @@ Contract unit tests are located in the [../tests/e2t-grid-order.spec.ts](/src/co
 bun install
 
 # run contract unit tests
-bun test:unit e2t-grid-order
+bun test:unit grid-order
 ```
-
-## Security Considerations
-
-- The contract ensures that outputs are bound to parent inputs to prevent **input aggregation attacks**.
-- Only the specified owner script can close the order and withdraw funds.
-
----
-
-_For auditing, see the flowchart and inline comments in the contract code for detailed validation and safety checks._

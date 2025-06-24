@@ -217,19 +217,26 @@ describe("Grid order | token <-> token | auto-compound", () => {
     });
   });
 
-  it.skip("Should compose multiple orders in the same transaction", () => {
+  it("Should compose multiple orders in the same transaction", () => {
     // arrange
     const orderA = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { quote: 100n }, prices: { buy: 5n, sell: 10n } })
+      mockOrderBox({
+        owner: bob,
+        assets: { base: 3000n, quote: 5000n },
+        prices: { buy: 5n, sell: 10n }
+      })
     );
 
     const orderB = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { quote: 10n }, prices: { buy: 7n, sell: 12n } })
+      mockOrderBox({
+        owner: bob,
+        assets: { base: 200n, quote: 1000n },
+        prices: { buy: 7n, sell: 12n }
+      })
     );
 
     contract.addUTxOs(orderA.box).addUTxOs(orderB.box);
-    alice.addBalance({ nanoergs: ONE_ERG });
-    const PAY_AMOUNT = 100n * orderA.price.buy + 5n * orderB.price.buy;
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(10000n)] });
 
     const transaction = new TransactionBuilder(chain.height)
       .extend(orderA.buy(100n)) // buy tokens
@@ -244,14 +251,20 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // assert
     expect(success).toBe(true);
 
+    const PAY_AMOUNT = 100n * orderA.price.buy + 5n * orderB.price.buy;
     expect(contract.utxos.length).toBe(2);
     expect(contract.balance).toStrictEqual({
-      nanoergs: orderA.box.value + orderB.box.value + PAY_AMOUNT, // contract now has 1_000_000_000 + 500 = 1_000_000_500 nanoergs
-      tokens: [sigusd(5n)] // no tokens left in the order
+      nanoergs: orderA.box.value + orderB.box.value,
+      tokens: [
+        sigusd(orderA.assets.base.amount + orderB.assets.base.amount + PAY_AMOUNT),
+        rsn(orderA.assets.quote.amount + orderB.assets.quote.amount - (100n + 5n))
+      ]
     });
 
-    // alice now has 105 tokens, 100 from orderA and 5 from orderB
-    expect(alice.balance).toStrictEqual({ nanoergs: ONE_ERG - PAY_AMOUNT, tokens: [sigusd(105n)] });
+    expect(alice.balance).toStrictEqual({
+      nanoergs: ONE_ERG,
+      tokens: [sigusd(10000n - PAY_AMOUNT), rsn(105n)]
+    });
   });
 
   it.skip("Should allow operations in the child orders", () => {

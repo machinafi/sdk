@@ -447,10 +447,12 @@ describe("Grid order | token <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it.skip("Should not allow changing the owner of the order", () => {
+  it("Should not allow changing the owner of the order", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
-    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
+    const order = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+    );
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
@@ -471,10 +473,12 @@ describe("Grid order | token <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it.skip("Should not allow changing the prices of the order", () => {
+  it("Should not allow changing the prices of the order", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
-    const order = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
+    const order = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+    );
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
@@ -519,11 +523,15 @@ describe("Grid order | token <-> token | auto-compound", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
-  it.skip("Should not allow spending multiple orders to a single child output", () => {
+  it("Should not allow spending multiple orders to a single child output", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
-    const order1 = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
-    const order2 = new GridOrder(mockOrderBox({ owner: bob, assets: { quote: 100n }, prices }));
+    const order1 = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+    );
+    const order2 = new GridOrder(
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+    );
 
     contract.addUTxOs(order1.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });

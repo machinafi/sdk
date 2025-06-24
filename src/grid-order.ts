@@ -173,7 +173,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
     const assets = options.assets;
     if (assets.quote.tokenId === "ERG") throw new Error("Quote asset cannot be ERG");
     if (!assets?.base.amount && !assets?.quote.amount)
-      throw new Error("At least one of base or target assets must be specified");
+      throw new Error("At least one of base or quote assets must be specified");
     if (!options.prices.buy || !options.prices.sell)
       throw new Error("Prices must be specified for both buy and sell");
 

@@ -267,16 +267,16 @@ describe("Grid order | token <-> token | auto-compound", () => {
     });
   });
 
-  it.skip("Should allow operations in the child orders", () => {
+  it("Should allow operations in the child orders", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const fatherOrder = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { quote: 100n, base: 200n }, prices })
     );
 
     contract.addUTxOs(fatherOrder.box);
-    alice.addBalance({ nanoergs: ONE_ERG, tokens: [] });
-    bob.addBalance({ nanoergs: ONE_ERG, tokens: [] });
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), rsn(100n)] });
+    bob.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), rsn(100n)] });
 
     const fatherTx = new TransactionBuilder(chain.height)
       .extend(fatherOrder.buy(10n))
@@ -304,7 +304,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
       childSellTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>
     );
     const childBuyTx = new TransactionBuilder(chain.height)
-      .extend(childOrder2.buy(5n))
+      .extend(childOrder2.buy(2n))
       .from(bob.utxos)
       .sendChangeTo(bob.address)
       .build();

@@ -68,8 +68,8 @@ Contracts unit tests ensure the correctness of the actions and are located at th
 
 ```bash
 # install dependencies
-bun install
+pnpm install
 
 # run contract unit tests
-bun test:unit grid-order
+pnpm test:unit grid-order
 ```

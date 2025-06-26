@@ -25,6 +25,7 @@
   val T = 0;    // token index
   val BUY = 0;  // buy price index
   val SELL = 1; // sell price index
+
   val TOKEN_ID = fromBase16("cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e");
   val EMPTY_TOKEN = (TOKEN_ID, 0L);
 

@@ -10,7 +10,7 @@
    * R6: Coll[Byte]          Spent input ID, prevents spending multiple inputs with a single output
    *
    * [[ Tokens ]]
-   * 0: BaseToken            The base token, must contain at least one unit
+   * 0: BaseToken            The base token, must contain at least one unit to avoid token misplacement
    * 1: QuoteToken?          The quote token, can be empty
    *
    * [[ Context variables ]]
@@ -58,8 +58,8 @@
     val validRecreation =                                   // should be true if:
       childBox.propositionBytes == SELF.propositionBytes && // 1. preserve proposition
       childBox.value == SELF.value &&                       // 2. preserve nanoergs value
-      selfBaseToken._1 == childBaseToken._1 &&              // 3. preserve base token ID (at least one unit of the base token must be present to avoid tokens misplacement)
-      childQuoteToken._1 == QUOTE_TOKEN_ID &&               // 4. preserve quote token ID, if any (all quote tokens can be sold by the contract, so it can be empty)
+      selfBaseToken._1 == childBaseToken._1 &&              // 3. preserve base token ID
+      childQuoteToken._1 == QUOTE_TOKEN_ID &&               // 4. preserve quote token ID, if any
       childBox.R4[SigmaProp].get == owner &&                // 5. preserve owner script
       childBox.R5[Coll[Long]].get == prices &&              // 6. preserve prices
       childBox.R6[Coll[Byte]].get == SELF.id;               // 7. bind the child to the parent box

@@ -1,27 +1,26 @@
+/**
+ * [[ Description ]]
+ * This is an auto-compounding two-way grid order contract for ERG and TOKEN. It allows users to 
+ * create grid orders to simultaneously buy and sell tokens at predefined prices.
+ *
+ * [[ Registers ]]
+ * R4: SigmaProp           Owner script
+ * R5: Coll[Long]          [buy, sell] prices in nanoergs
+ * R6: Coll[Byte]          Spent input ID, prevents spending multiple inputs with a single output
+ *
+ * [[ Tokens ]]
+ * 0: QuoteToken?          The quote token, can be empty
+ *
+ * [[ Context variables ]]
+ * 0: Boolean              Action, true == buy, false == sell
+ * 1: Int                  Recreated output index
+ *
+ * [[ Expected actions ]]
+ * Buy                     Buy tokens with ERG at predefined price
+ * Sell                    Sell tokens for ERG at predefined price
+ * Close                   Close the order and withdrawal assets
+ */
 {
-  /**
-   * [[ Description ]]
-   * This is an auto-compounding two-way grid order contract for ERG and TOKEN. It allows users to 
-   * create grid orders to simultaneously buy and sell tokens at predefined prices.
-   *
-   * [[ Registers ]]
-   * R4: SigmaProp           Owner script
-   * R5: Coll[Long]          [buy, sell] prices in nanoergs
-   * R6: Coll[Byte]          Spent input ID, prevents spending multiple inputs with a single output
-   *
-   * [[ Tokens ]]
-   * 0: QuoteToken?          The quote token, can be empty
-   *
-   * [[ Context variables ]]
-   * 0: Boolean              Action, true == buy, false == sell
-   * 1: Int                  Recreated output index
-   *
-   * [[ Expected actions ]]
-   * Buy                     Buy tokens with ERG at predefined price
-   * Sell                    Sell tokens for ERG at predefined price
-   * Close                   Close the order and withdrawal assets
-   */
-
   val T = 0;    // token index
   val BUY = 0;  // buy price index
   val SELL = 1; // sell price index

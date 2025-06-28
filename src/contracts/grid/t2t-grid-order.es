@@ -1,28 +1,27 @@
+/**
+ * [[ Description ]]
+ * This is an auto-compounding two-way grid order contract for BASE and QUOTE tokens. It allows 
+ * users to create grid orders to simultaneously buy and sell tokens at predefined prices.
+ *
+ * [[ Registers ]]
+ * R4: SigmaProp           Owner script
+ * R5: Coll[Long]          [buy, sell] prices in base token units
+ * R6: Coll[Byte]          Spent input ID, prevents spending multiple inputs with a single output
+ *
+ * [[ Tokens ]]
+ * 0: BaseToken            The base token, must contain at least one unit to avoid token misplacement
+ * 1: QuoteToken?          The quote token, can be empty
+ *
+ * [[ Context variables ]]
+ * 0: Boolean              Action, true == buy, false == sell
+ * 1: Int                  Recreated output index
+ *
+ * [[ Expected actions ]]
+ * Buy                     Buy quote tokens with base tokens at predefined price
+ * Sell                    Sell quote tokens for base tokens at predefined price
+ * Close                   Close the order and withdrawal assets
+ */
 {
-  /**
-   * [[ Description ]]
-   * This is an auto-compounding two-way grid order contract for BASE and QUOTE tokens. It allows 
-   * users to create grid orders to simultaneously buy and sell tokens at predefined prices.
-   *
-   * [[ Registers ]]
-   * R4: SigmaProp           Owner script
-   * R5: Coll[Long]          [buy, sell] prices in base token units
-   * R6: Coll[Byte]          Spent input ID, prevents spending multiple inputs with a single output
-   *
-   * [[ Tokens ]]
-   * 0: BaseToken            The base token, must contain at least one unit to avoid token misplacement
-   * 1: QuoteToken?          The quote token, can be empty
-   *
-   * [[ Context variables ]]
-   * 0: Boolean              Action, true == buy, false == sell
-   * 1: Int                  Recreated output index
-   *
-   * [[ Expected actions ]]
-   * Buy                     Buy quote tokens with base tokens at predefined price
-   * Sell                    Sell quote tokens for base tokens at predefined price
-   * Close                   Close the order and withdrawal assets
-   */
-
   val BASE = 0;  // base token index
   val QUOTE = 1; // quote token index
   val BUY = 0;   // buy price index

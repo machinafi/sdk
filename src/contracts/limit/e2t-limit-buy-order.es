@@ -1,7 +1,8 @@
 /**
  * [[ Description ]]
- * This is an auto-compounding two-way grid order contract for ERG and TOKEN. It allows users to 
- * create grid orders to simultaneously buy and sell tokens at predefined prices.
+ * This is a limit buy order contract for ERG and TOKEN with partial filling support. It allows users 
+ * to buy tokens at a predefined price, with the contract accumulating ERG until the order is fully 
+ * filled. Upon completion, the accumulated funds are transferred to the order owner (R4). 
  *
  * [[ Registers ]]
  * R4: SigmaProp           Owner script, only supports ErgoTree v0
@@ -37,23 +38,20 @@
 
     val childBox = OUTPUTS(childBoxIndex.get);
 
-    val selfToken = SELF.tokens.getOrElse(T, EMPTY_TOKEN);
-    val childToken = childBox.tokens.getOrElse(T, EMPTY_TOKEN);
+    val selfToken = SELF.tokens(T); // self will always contain tokens
+    val childToken = childBox.tokens.getOrElse(T, EMPTY_TOKEN); // child tokens can be empty if order is fully filled
     val selfTokenAmount = selfToken._2;
     val childTokenAmount = childToken._2;
 
+    // if the child box still contains tokens, it must preserve the state and accumulate ERG in it
     val validRecreation = if (childTokenAmount > 0L) {      
-      // if the child box has tokens, it must preserve the order and accumulate nanoergs in it
-
                                                             // should be true if:
       childBox.propositionBytes == SELF.propositionBytes && // 1. preserve proposition
       childToken._1 == TOKEN_ID &&                          // 2. preserve token ID, if any
       childBox.R4[SigmaProp].get == owner &&                // 3. preserve owner script
       childBox.R5[Long].get == price &&                     // 4. preserve price
       childBox.R6[Coll[Byte]].get == SELF.id                // 5. bind the child to the parent box
-    } else {
-      // if the child box has no tokens, it must send assets to the owner
-      
+    } else { // if the child box contains no tokens, funds must be sent to the owner
       childBox.propositionBytes == owner.propBytes
     }
 

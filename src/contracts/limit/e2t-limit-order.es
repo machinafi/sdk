@@ -28,7 +28,7 @@
   val owner = SELF.R4[SigmaProp].get;
   val price = SELF.R5[Long].get; // buy price in nanoergs
   val buying = SELF.R6[Boolean].get; // true if the user is buying tokens, false if closing the order
-  
+
   val childBoxIndex = getVar[Int](1);
   val trading = childBoxIndex.isDefined;
 
@@ -40,7 +40,7 @@
     val selfTokenAmount = selfToken._2;
     val childTokenAmount = childToken._2;
 
-    val tokensLeft = if (buying)  { childTokenAmount } else { selfTokenAmount };
+    val tokensLeft = if (buying) { childTokenAmount } else { selfTokenAmount };
     val partiallyFilled = tokensLeft > 0L;
 
     // if the order not filled, it must preserve the state and accumulate ERG in it

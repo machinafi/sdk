@@ -18,8 +18,8 @@
     "@biomejs/biome": "^1.9.4",
     "@fleet-sdk/compiler": "^0.10.0",
     "@fleet-sdk/mock-chain": "^0.10.0",
-    "@types/bun": "latest",
-    "vitest": "^3.2.4"
+    "@types/node": "latest",
+    "vitest": "^4.0.14"
   },
   "peerDependencies": {
     "typescript": "^5"

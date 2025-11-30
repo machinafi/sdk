@@ -1,8 +1,8 @@
 /**
  * [[ Description ]]
- * This is a limit buy order contract for ERG and TOKEN with partial filling support. It allows users 
- * to buy tokens at a predefined price, with the contract accumulating ERG until the order is fully 
- * filled. Upon completion, the accumulated funds are transferred to the order owner (R4). 
+ * This is a limit order contract for ERG and TOKEN with partial filling support. It allows users
+ * to partially or fully buy and sell tokens at a predefined price. Upon completion, the accumulated 
+ * funds are transferred to the order owner (R4).
  *
  * [[ Registers ]]
  * R4: SigmaProp           Owner script, only supports ErgoTree v0
@@ -26,7 +26,7 @@
   val EMPTY_TOKEN = (TOKEN_ID, 0L);
 
   val owner = SELF.R4[SigmaProp].get;
-  val price = SELF.R5[Long].get; // buy price in nanoergs
+  val price = SELF.R5[Long].get;     // buy price in nanoergs
   val buying = SELF.R6[Boolean].get; // true if the user is buying tokens, false if closing the order
 
   val childBoxIndex = getVar[Int](1);
@@ -44,7 +44,7 @@
     val partiallyFilled = tokensLeft > 0L;
 
     // if the order not filled, it must preserve the state and accumulate ERG in it
-    val validRecreation = if (partiallyFilled) {      
+    val validRecreation = if (partiallyFilled) {
                                                             // should be true if:
       childBox.propositionBytes == SELF.propositionBytes && // 1. preserve proposition
       childToken._1 == TOKEN_ID &&                          // 2. preserve token ID, if any
@@ -61,7 +61,7 @@
       // The user is BUYING tokens with nanoergs //
       // Asset flow: nanoergs IN, tokens OUT     //
       // ======================================= //
-      
+
       val nanoergsIn = childBox.value - SELF.value;       // nanoergs received from the buyer
       val tokensOut = selfTokenAmount - childTokenAmount; // tokens paid out to the buyer
       val requiredNanoergs = tokensOut * price;           // nanoergs covering the token price

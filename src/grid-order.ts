@@ -93,7 +93,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
    * Buys tokens with nanoergs at the price specified in the order.
    * @param amount - The amount of token units to buy.
    */
-  buy(amount: bigint, hander?: ActionHandler): FleetPlugin {
+  buy(amount: bigint, handler?: ActionHandler): FleetPlugin {
     // TODO: add amounts validation
     if (amount <= 0n) throw new Error("Amount must be greater than zero");
 
@@ -125,7 +125,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
         })
       );
 
-      if (hander) hander(output, input);
+      if (handler) handler(output, input);
     };
   }
 
@@ -133,7 +133,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
    * Sell tokens for nanoergs at the price specified in the order.
    * @param amount - The amount of token units to sell.
    */
-  sell(amount: bigint, hander?: ActionHandler): FleetPlugin {
+  sell(amount: bigint, handler?: ActionHandler): FleetPlugin {
     // TODO: add amounts validation
     if (amount <= 0n) throw new Error("Amount must be greater than zero");
 
@@ -165,7 +165,7 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
         })
       );
 
-      if (hander) hander(output, input);
+      if (handler) handler(output, input);
     };
   }
 

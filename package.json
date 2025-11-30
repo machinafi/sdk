@@ -6,7 +6,8 @@
   "scripts": {
     "test:unit": "vitest --run",
     "watch:unit": "vitest",
-    "watch:unit:recompile": "RECOMPILE=true vitest"
+    "watch:unit:recompile": "RECOMPILE=true vitest",
+    "fmt": "biome format --write"
   },
   "dependencies": {
     "@fleet-sdk/common": "^0.10.0",

@@ -1,7 +1,7 @@
 /**
  * [[ Description ]]
  * This is a limit order contract for ERG and TOKEN with partial filling support. It allows users
- * to partially or fully buy and sell tokens at a predefined price. Upon completion, the accumulated 
+ * to partially or fully buy and sell tokens at a predefined price. Upon completion, the accumulated
  * funds are transferred to the order owner (R4).
  *
  * [[ Registers ]]
@@ -18,15 +18,17 @@
  *
  * [[ Expected actions ]]
  * Buy                     Buy tokens with ERG at predefined price
+ * Sell                    Sell tokens for ERG at predefined price
  * Close                   Close the order and withdrawal assets
  */
+
 {
   val T = 0; // token index
   val TOKEN_ID = fromBase16("cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e");
   val EMPTY_TOKEN = (TOKEN_ID, 0L);
 
   val owner = SELF.R4[SigmaProp].get;
-  val price = SELF.R5[Long].get;     // buy price in nanoergs
+  val price = SELF.R5[Long].get;     // price in nanoergs
   val buying = SELF.R6[Boolean].get; // true if the user is buying tokens, false if closing the order
 
   val childBoxIndex = getVar[Int](1);
@@ -43,7 +45,7 @@
     val tokensLeft = if (buying) { childTokenAmount } else { selfTokenAmount };
     val partiallyFilled = tokensLeft > 0L;
 
-    // if the order not filled, it must preserve the state and accumulate ERG in it
+    // if the order not filled, it must preserve the state of the order box
     val validRecreation = if (partiallyFilled) {
                                                             // should be true if:
       childBox.propositionBytes == SELF.propositionBytes && // 1. preserve proposition

@@ -7,7 +7,8 @@
     "test:unit": "vitest --run",
     "watch:unit": "vitest",
     "watch:unit:recompile": "RECOMPILE=true vitest",
-    "fmt": "oxfmt"
+    "fmt": "oxfmt",
+    "lint": "oxlint"
   },
   "dependencies": {
     "@fleet-sdk/common": "^0.10.0",
@@ -21,6 +22,7 @@
     "@fleet-sdk/mock-chain": "^0.10.0",
     "@types/node": "latest",
     "oxfmt": "^0.20.0",
+    "oxlint": "^1.35.0",
     "vitest": "^4.0.14"
   },
   "peerDependencies": {

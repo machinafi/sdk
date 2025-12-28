@@ -1,3 +1,5 @@
+import type { Amount, Box } from "@fleet-sdk/common";
+
 import {
   ErgoUnsignedInput,
   OutputBuilder,
@@ -9,12 +11,13 @@ import {
   SLong,
   SSigmaProp,
   TransactionBuilder,
-  type R4ToR5Registers
+  type R4ToR5Registers,
 } from "@fleet-sdk/core";
 import { MockChain } from "@fleet-sdk/mock-chain";
 import { afterEach, describe, expect, it } from "vitest";
-import type { Amount, Box } from "@fleet-sdk/common";
+
 import { GridOrder } from "../../grid-order";
+import T2TScript from "../grid/t2t-grid-order.es?raw";
 import {
   createGridOrderMocker,
   FAKE_TOKEN_ID,
@@ -25,9 +28,8 @@ import {
   SIGUSD_TOKEN_ID,
   UNPROVEN_SCHNORR_ERROR,
   RSN_TOKEN_ID,
-  rsn
+  rsn,
 } from "./utils";
-import T2TScript from "../grid/t2t-grid-order.es?raw";
 
 /**
  * This test suite covers the Token <-> Token grid order contract.
@@ -67,7 +69,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 200n, quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 200n, quote: 100n }, prices }),
     );
 
     contract.addUTxOs(order.box);
@@ -93,13 +95,13 @@ describe("Grid order | token <-> token | auto-compound", () => {
       nanoergs: order.box.value, // erg value remains the same
       tokens: [
         sigusd(order.assets.base.amount + PAY_AMOUNT), // contract now has 100 + 50 = 150 SigUSD
-        rsn(order.assets.quote.amount - BUY_AMOUNT) // contract now has 200 - 10 = 190 RSN left
-      ]
+        rsn(order.assets.quote.amount - BUY_AMOUNT), // contract now has 200 - 10 = 190 RSN left
+      ],
     });
 
     expect(alice.balance).toStrictEqual({
       nanoergs: ONE_ERG,
-      tokens: [sigusd(100n - PAY_AMOUNT), rsn(BUY_AMOUNT)]
+      tokens: [sigusd(100n - PAY_AMOUNT), rsn(BUY_AMOUNT)],
     });
   });
 
@@ -107,7 +109,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 200n, quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 200n, quote: 100n }, prices }),
     );
 
     contract.addUTxOs(order.box);
@@ -131,12 +133,12 @@ describe("Grid order | token <-> token | auto-compound", () => {
     expect(contract.utxos.length).toBe(1);
     expect(contract.balance).toStrictEqual({
       nanoergs: order.box.value, // ERG value remains the same
-      tokens: [sigusd(order.assets.base.amount + PAY_AMOUNT)] // contract now has 200 + 500 = 700 SigUSD, and 0 RSN left
+      tokens: [sigusd(order.assets.base.amount + PAY_AMOUNT)], // contract now has 200 + 500 = 700 SigUSD, and 0 RSN left
     });
 
     expect(alice.balance).toStrictEqual({
       nanoergs: ONE_ERG, // Alice's ERG balance remains the same
-      tokens: [sigusd(10000n - PAY_AMOUNT), rsn(BUY_AMOUNT)] // Alice has 10000 - 500 = 9500 SigUSD and 100 RSN
+      tokens: [sigusd(10000n - PAY_AMOUNT), rsn(BUY_AMOUNT)], // Alice has 10000 - 500 = 9500 SigUSD and 100 RSN
     });
   });
 
@@ -144,7 +146,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 1000n, quote: 200n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 1000n, quote: 200n }, prices }),
     );
 
     contract.addUTxOs(order.box);
@@ -170,13 +172,13 @@ describe("Grid order | token <-> token | auto-compound", () => {
       nanoergs: order.box.value,
       tokens: [
         sigusd(order.assets.base.amount - RECEIVING_AMOUNT),
-        rsn(order.assets.quote.amount + SELL_AMOUNT)
-      ]
+        rsn(order.assets.quote.amount + SELL_AMOUNT),
+      ],
     });
 
     expect(alice.balance).toStrictEqual({
       nanoergs: ONE_ERG,
-      tokens: [sigusd(RECEIVING_AMOUNT), rsn(100n - SELL_AMOUNT)]
+      tokens: [sigusd(RECEIVING_AMOUNT), rsn(100n - SELL_AMOUNT)],
     });
   });
 
@@ -184,7 +186,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 11n };
     const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 100n, quote: 200n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 100n, quote: 200n }, prices }),
     );
 
     contract.addUTxOs(order.box);
@@ -208,12 +210,12 @@ describe("Grid order | token <-> token | auto-compound", () => {
     expect(contract.utxos.length).toBe(1);
     expect(contract.balance).toStrictEqual({
       nanoergs: order.box.value,
-      tokens: [sigusd(1n), rsn(order.assets.quote.amount + SELL_AMOUNT)] // contract now has 100 tokens from alice
+      tokens: [sigusd(1n), rsn(order.assets.quote.amount + SELL_AMOUNT)], // contract now has 100 tokens from alice
     });
 
     expect(alice.balance).toStrictEqual({
       nanoergs: ONE_ERG,
-      tokens: [sigusd(RECEIVING_AMOUNT), rsn(1000n - SELL_AMOUNT)]
+      tokens: [sigusd(RECEIVING_AMOUNT), rsn(1000n - SELL_AMOUNT)],
     });
   });
 
@@ -223,16 +225,16 @@ describe("Grid order | token <-> token | auto-compound", () => {
       mockOrderBox({
         owner: bob,
         assets: { base: 3000n, quote: 5000n },
-        prices: { buy: 5n, sell: 10n }
-      })
+        prices: { buy: 5n, sell: 10n },
+      }),
     );
 
     const orderB = new GridOrder(
       mockOrderBox({
         owner: bob,
         assets: { base: 200n, quote: 1000n },
-        prices: { buy: 7n, sell: 12n }
-      })
+        prices: { buy: 7n, sell: 12n },
+      }),
     );
 
     contract.addUTxOs(orderA.box).addUTxOs(orderB.box);
@@ -257,13 +259,13 @@ describe("Grid order | token <-> token | auto-compound", () => {
       nanoergs: orderA.box.value + orderB.box.value,
       tokens: [
         sigusd(orderA.assets.base.amount + orderB.assets.base.amount + PAY_AMOUNT),
-        rsn(orderA.assets.quote.amount + orderB.assets.quote.amount - (100n + 5n))
-      ]
+        rsn(orderA.assets.quote.amount + orderB.assets.quote.amount - (100n + 5n)),
+      ],
     });
 
     expect(alice.balance).toStrictEqual({
       nanoergs: ONE_ERG,
-      tokens: [sigusd(10000n - PAY_AMOUNT), rsn(105n)]
+      tokens: [sigusd(10000n - PAY_AMOUNT), rsn(105n)],
     });
   });
 
@@ -271,7 +273,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const fatherOrder = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { quote: 100n, base: 200n }, prices })
+      mockOrderBox({ owner: bob, assets: { quote: 100n, base: 200n }, prices }),
     );
 
     contract.addUTxOs(fatherOrder.box);
@@ -289,7 +291,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
 
     // assert sell
     const childOrder1 = new GridOrder(
-      fatherTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>
+      fatherTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>,
     );
     const childSellTx = new TransactionBuilder(chain.height)
       .extend(childOrder1.sell(5n))
@@ -301,7 +303,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
 
     // assert buy
     const childOrder2 = new GridOrder(
-      childSellTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>
+      childSellTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>,
     );
     const childBuyTx = new TransactionBuilder(chain.height)
       .extend(childOrder2.buy(2n))
@@ -313,7 +315,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
 
     // assert close
     const childOrder3 = new GridOrder(
-      childBuyTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>
+      childBuyTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>,
     );
     const childCloseTx = new TransactionBuilder(chain.height)
       .extend(childOrder3.close())
@@ -340,7 +342,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 2n, sell: 10n };
     const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices }),
     );
 
     contract.addUTxOs(order.box);
@@ -382,7 +384,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices }),
     );
 
     contract.addUTxOs(order.box);
@@ -391,7 +393,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     const transaction = new TransactionBuilder(chain.height)
       .extend(
         // attempt to buy tokens but maliciously replace the token ID
-        order.buy(10n, (output) => output.eject((x) => (x.tokens.at(0).tokenId = FAKE_TOKEN_ID)))
+        order.buy(10n, (output) => output.eject((x) => (x.tokens.at(0).tokenId = FAKE_TOKEN_ID))),
       )
       .from(alice.utxos)
       .sendChangeTo(alice.address)
@@ -405,7 +407,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 101n, quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 101n, quote: 100n }, prices }),
     );
 
     contract.addUTxOs(order.box);
@@ -414,7 +416,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     const transaction = new TransactionBuilder(chain.height)
       .extend(
         // attempt to sell tokens but maliciously replace the quote token ID
-        order.sell(10n, (output) => output.eject((x) => (x.tokens.at(1).tokenId = FAKE_TOKEN_ID)))
+        order.sell(10n, (output) => output.eject((x) => (x.tokens.at(1).tokenId = FAKE_TOKEN_ID))),
       )
       .from(alice.utxos)
       .sendChangeTo(alice.address)
@@ -428,7 +430,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 101n, quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 101n, quote: 100n }, prices }),
     );
 
     contract.addUTxOs(order.box);
@@ -437,7 +439,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     const transaction = new TransactionBuilder(chain.height)
       .extend(
         // attempt to sell tokens but maliciously replace the base token ID
-        order.sell(10n, (output) => output.eject((x) => (x.tokens.at(0).tokenId = FAKE_TOKEN_ID)))
+        order.sell(10n, (output) => output.eject((x) => (x.tokens.at(0).tokenId = FAKE_TOKEN_ID))),
       )
       .from(alice.utxos)
       .sendChangeTo(alice.address)
@@ -451,7 +453,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices }),
     );
 
     contract.addUTxOs(order.box);
@@ -461,8 +463,8 @@ describe("Grid order | token <-> token | auto-compound", () => {
       .extend(
         order.buy(10n, (output) =>
           // trying to change the owner of the order form Bob to Alice
-          output.setAdditionalRegisters({ R4: SSigmaProp(SGroupElement(alice.key.publicKey)) })
-        )
+          output.setAdditionalRegisters({ R4: SSigmaProp(SGroupElement(alice.key.publicKey)) }),
+        ),
       )
       .from(alice.utxos)
       .sendChangeTo(alice.address)
@@ -477,7 +479,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices }),
     );
 
     contract.addUTxOs(order.box);
@@ -487,8 +489,8 @@ describe("Grid order | token <-> token | auto-compound", () => {
       .extend(
         order.buy(10n, (output) =>
           // trying to change the prices of the order
-          output.setAdditionalRegisters({ R5: SColl(SLong, [1n, 1n]) })
-        )
+          output.setAdditionalRegisters({ R5: SColl(SLong, [1n, 1n]) }),
+        ),
       )
       .from(alice.utxos)
       .sendChangeTo(alice.address)
@@ -503,7 +505,7 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices }),
     );
 
     contract.addUTxOs(order.box);
@@ -527,10 +529,10 @@ describe("Grid order | token <-> token | auto-compound", () => {
     // arrange
     const prices = { buy: 5n, sell: 10n };
     const order1 = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices }),
     );
     const order2 = new GridOrder(
-      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices })
+      mockOrderBox({ owner: bob, assets: { base: 1n, quote: 100n }, prices }),
     );
 
     contract.addUTxOs(order1.box);
@@ -541,11 +543,11 @@ describe("Grid order | token <-> token | auto-compound", () => {
       .from(
         // set index of the child output to 0, which will be the same as order1
         new ErgoUnsignedInput(order2.box).setContextExtension({ 0: SBool(true), 1: SInt(0) }),
-        { ensureInclusion: true }
+        { ensureInclusion: true },
       )
       .extend(
         // attempt to buy tokens but maliciously replace the token ID
-        order1.buy(10n)
+        order1.buy(10n),
       )
       .to(new OutputBuilder(SAFE_MIN_BOX_VALUE, alice.address).addTokens(sigusd(10n))) // trying to create a new box to alice with the stolen tokens from order2
       .sendChangeTo(alice.address)

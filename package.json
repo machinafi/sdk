@@ -1,13 +1,13 @@
 {
   "name": "gridz",
-  "module": "src/index.ts",
-  "type": "module",
   "private": true,
+  "type": "module",
+  "module": "src/index.ts",
   "scripts": {
     "test:unit": "vitest --run",
     "watch:unit": "vitest",
     "watch:unit:recompile": "RECOMPILE=true vitest",
-    "fmt": "biome format --write"
+    "fmt": "oxfmt"
   },
   "dependencies": {
     "@fleet-sdk/common": "^0.10.0",
@@ -20,6 +20,7 @@
     "@fleet-sdk/compiler": "^0.10.0",
     "@fleet-sdk/mock-chain": "^0.10.0",
     "@types/node": "latest",
+    "oxfmt": "^0.20.0",
     "vitest": "^4.0.14"
   },
   "peerDependencies": {

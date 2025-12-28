@@ -1,9 +1,12 @@
 import type { Box, TokenAmount } from "@fleet-sdk/common";
+
 import { compile } from "@fleet-sdk/compiler";
 import { type R4ToR5Registers, SAFE_MIN_BOX_VALUE } from "@fleet-sdk/core";
 import { type KeyedMockChainParty, mockUTxO } from "@fleet-sdk/mock-chain";
-import { GridOrder } from "../../grid-order";
+
 import type { PriceRange } from "../../types";
+
+import { GridOrder } from "../../grid-order";
 import { QUOTE_TOKEN_ID_PLACEHOLDER } from "../../order-contract";
 
 type Token = TokenAmount<bigint>;
@@ -46,21 +49,21 @@ export function createGridOrderMocker(script: string, baseId: string, quoteId: s
       assets: !p.assets
         ? {
             base: { tokenId: baseId, amount: SAFE_MIN_BOX_VALUE },
-            quote: { tokenId: quoteId, amount: 0n }
+            quote: { tokenId: quoteId, amount: 0n },
           }
         : {
             base: { tokenId: baseId, amount: p.assets?.base ?? 0n },
-            quote: { tokenId: quoteId, amount: p.assets?.quote ?? 0n }
+            quote: { tokenId: quoteId, amount: p.assets?.quote ?? 0n },
           },
       prices: p.prices ?? { buy: 1n, sell: 1n },
-      owner: p.owner.address
+      owner: p.owner.address,
     })
       .setCreationHeight(1)
       .build();
 
     return mockUTxO({
       ...candidate,
-      ergoTree: newTree ?? candidate.ergoTree
+      ergoTree: newTree ?? candidate.ergoTree,
     }) as Box<bigint, R4ToR5Registers>;
   };
 }

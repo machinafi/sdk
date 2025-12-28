@@ -3,7 +3,7 @@ import type {
   ErgoUnsignedInput,
   FleetPlugin,
   OutputBuilder,
-  R4ToR5Registers
+  R4ToR5Registers,
 } from "@fleet-sdk/core";
 
 export type AssetId = "ERG" | (string & {});

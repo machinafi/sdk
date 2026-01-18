@@ -6,6 +6,8 @@ import type {
   R4ToR5Registers,
 } from "@fleet-sdk/core";
 
+import type { OrderContract } from "../order-contract";
+
 export type AssetId = "ERG" | (string & {});
 
 export interface Asset {
@@ -19,9 +21,10 @@ export interface ExchangeableAssets {
 }
 
 export interface Order<T = bigint> {
-  price: T;
-  box: Box<bigint, R4ToR5Registers>;
-  // assets: Assets;
+  get price(): T;
+  get box(): Box<bigint, R4ToR5Registers>;
+  get contract(): OrderContract;
+  get assets(): ExchangeableAssets;
 
   /**
    * Cancels the order by allowing the owner to reclaim the funds.
@@ -36,6 +39,8 @@ export interface BuyOrder<T = bigint> extends Order<T> {
 export interface SellOrder<T = bigint> extends Order<T> {
   sell: (amount: bigint, handler?: ActionHandler) => FleetPlugin;
 }
+
+export interface BuySellOrder<T = bigint> extends BuyOrder<T>, SellOrder<T> {}
 
 export interface PriceRange {
   buy: bigint;

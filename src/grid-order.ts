@@ -24,14 +24,7 @@ import {
   SSigmaProp,
 } from "@fleet-sdk/serializer";
 
-import type {
-  ActionHandler,
-  AssetId,
-  BuyOrder,
-  ExchangeableAssets,
-  PriceRange,
-  SellOrder,
-} from "./types";
+import type { ActionHandler, AssetId, BuySellOrder, ExchangeableAssets, PriceRange } from "./types";
 
 import { OrderContract } from "./order-contract";
 
@@ -46,49 +39,64 @@ export const CONTRACTS = {
   ),
 };
 
-export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
-  readonly box: Box<bigint, R4ToR5Registers>;
+export class GridOrder implements BuySellOrder<PriceRange> {
+  #box: Box<bigint, R4ToR5Registers>;
+  #price: PriceRange;
+  #assets: ExchangeableAssets;
+  #contract: OrderContract;
 
-  readonly price: PriceRange;
-  readonly assets: ExchangeableAssets;
-  readonly contract: OrderContract;
+  get box(): Box<bigint, R4ToR5Registers> {
+    return this.#box;
+  }
+
+  get price(): PriceRange {
+    return this.#price;
+  }
+
+  get assets(): ExchangeableAssets {
+    return this.#assets;
+  }
+
+  get contract(): OrderContract {
+    return this.#contract;
+  }
 
   constructor(box: Box<Amount, R4ToR5Registers> | BoxCandidate<Amount, R4ToR5Registers>) {
     if (CONTRACTS.E2T.validate(box.ergoTree)) {
-      this.contract = CONTRACTS.E2T;
+      this.#contract = CONTRACTS.E2T;
     } else if (CONTRACTS.T2T.validate(box.ergoTree)) {
-      this.contract = CONTRACTS.T2T;
+      this.#contract = CONTRACTS.T2T;
     } else {
       throw new Error("Invalid Grid Order contract");
     }
 
-    this.box = ensureUTxOBigInt(box) as Box<bigint, R4ToR5Registers>;
-    const quoteId = this.contract.getQuoteId(box.ergoTree);
+    this.#box = ensureUTxOBigInt(box) as Box<bigint, R4ToR5Registers>;
+    const quoteId = this.#contract.getQuoteId(box.ergoTree);
 
-    if (this.contract.type === "E2T") {
+    if (this.#contract.type === "E2T") {
       if (!validateToken(quoteId, box, 0)) throw new Error("Invalid quote token for the contract");
-      this.assets = {
-        base: { tokenId: "ERG", amount: this.box.value },
-        quote: { tokenId: quoteId, amount: this.box.assets[0]?.amount ?? 0n },
+      this.#assets = {
+        base: { tokenId: "ERG", amount: this.#box.value },
+        quote: { tokenId: quoteId, amount: this.#box.assets[0]?.amount ?? 0n },
       };
     } else {
-      const baseId = this.box.assets[0]?.tokenId;
+      const baseId = this.#box.assets[0]?.tokenId;
       if (!baseId) throw new Error("The base token is not specified in the box");
       if (!validateToken(quoteId, box, 1)) throw new Error("Invalid quote token for the contract");
 
-      this.assets = {
-        base: { tokenId: baseId, amount: this.box.assets[0]?.amount ?? 0n },
-        quote: { tokenId: quoteId, amount: this.box.assets[1]?.amount ?? 0n },
+      this.#assets = {
+        base: { tokenId: baseId, amount: this.#box.assets[0]?.amount ?? 0n },
+        quote: { tokenId: quoteId, amount: this.#box.assets[1]?.amount ?? 0n },
       };
     }
 
     const prices = SConstant.from<[bigint, bigint]>(box.additionalRegisters.R5);
     if (prices.type.toString() !== "SColl[SLong]") throw new Error("Invalid order box");
-    this.price = { buy: prices.data[0], sell: prices.data[1] };
+    this.#price = { buy: prices.data[0], sell: prices.data[1] };
   }
 
   close(): FleetPlugin {
-    return ({ addInputs }) => addInputs(this.box);
+    return ({ addInputs }) => addInputs(this.#box);
   }
 
   /**
@@ -100,20 +108,20 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
     if (amount <= 0n) throw new Error("Amount must be greater than zero");
 
     return ({ addInputs, addOutputs }) => {
-      const box = this.box;
-      const requiredBase = amount * this.price.buy;
+      const box = this.#box;
+      const requiredBase = amount * this.#price.buy;
 
       const input = new ErgoUnsignedInput(box);
       const output = OutputBuilder.from(box); // bind the output to the input box
 
-      if (this.contract.type === "E2T") {
+      if (this.#contract.type === "E2T") {
         output
           .setValue(box.value + requiredBase)
-          .addTokens({ tokenId: this.assets.quote.tokenId, amount: amount * -1n }); // fleet will deduct the amount from the existing tokens
+          .addTokens({ tokenId: this.#assets.quote.tokenId, amount: amount * -1n }); // fleet will deduct the amount from the existing tokens
       } else {
         output
-          .addTokens({ tokenId: this.assets.base.tokenId, amount: requiredBase }) // fleet will sum the amount to the existing tokens
-          .addTokens({ tokenId: this.assets.quote.tokenId, amount: amount * -1n }); // fleet will sum the amount to the existing tokens
+          .addTokens({ tokenId: this.#assets.base.tokenId, amount: requiredBase }) // fleet will sum the amount to the existing tokens
+          .addTokens({ tokenId: this.#assets.quote.tokenId, amount: amount * -1n }); // fleet will sum the amount to the existing tokens
       }
 
       const outputsLength = addOutputs(
@@ -140,20 +148,20 @@ export class GridOrder implements BuyOrder<PriceRange>, SellOrder<PriceRange> {
     if (amount <= 0n) throw new Error("Amount must be greater than zero");
 
     return ({ addInputs, addOutputs }) => {
-      const box = this.box;
-      const basePayout = amount * this.price.sell;
+      const box = this.#box;
+      const basePayout = amount * this.#price.sell;
 
       const input = new ErgoUnsignedInput(box);
       const output = OutputBuilder.from(box);
 
-      if (this.contract.type === "E2T") {
+      if (this.#contract.type === "E2T") {
         output
           .setValue(box.value - basePayout)
-          .addTokens({ tokenId: this.assets.quote.tokenId, amount }); // fleet will sum the amount to the existing tokens
+          .addTokens({ tokenId: this.#assets.quote.tokenId, amount }); // fleet will sum the amount to the existing tokens
       } else {
         output
-          .addTokens({ tokenId: this.assets.base.tokenId, amount: basePayout * -1n }) // fleet will deduct the amount from the existing tokens
-          .addTokens({ tokenId: this.assets.quote.tokenId, amount }); // fleet will sum the amount to the existing tokens
+          .addTokens({ tokenId: this.#assets.base.tokenId, amount: basePayout * -1n }) // fleet will deduct the amount from the existing tokens
+          .addTokens({ tokenId: this.#assets.quote.tokenId, amount }); // fleet will sum the amount to the existing tokens
       }
 
       const outputsLength = addOutputs(

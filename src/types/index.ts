@@ -1,5 +1,6 @@
 import type {
   Box,
+  ErgoAddress,
   ErgoUnsignedInput,
   FleetPlugin,
   OutputBuilder,
@@ -29,15 +30,15 @@ export interface Order<T = bigint> {
   /**
    * Cancels the order by allowing the owner to reclaim the funds.
    */
-  close: () => FleetPlugin;
+  close(): FleetPlugin;
 }
 
 export interface BuyOrder<T = bigint> extends Order<T> {
-  buy: (amount: bigint, handler?: ActionHandler) => FleetPlugin;
+  buy(amount: bigint, handler?: ActionHandler): FleetPlugin;
 }
 
 export interface SellOrder<T = bigint> extends Order<T> {
-  sell: (amount: bigint, handler?: ActionHandler) => FleetPlugin;
+  sell(amount: bigint, handler?: ActionHandler): FleetPlugin;
 }
 
 export interface BuySellOrder<T = bigint> extends BuyOrder<T>, SellOrder<T> {}

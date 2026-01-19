@@ -31,7 +31,7 @@
   val price = SELF.R5[Long].get;     // price in nanoergs
   val buying = SELF.R6[Boolean].get; // true if the user is buying tokens, false if closing the order
 
-  val childBoxIndex = getVar[Int](1);
+  val childBoxIndex = getVar[Int](0);
   val trading = childBoxIndex.isDefined;
 
   if (trading) {

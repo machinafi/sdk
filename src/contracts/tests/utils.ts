@@ -1,20 +1,27 @@
 import type { Box, TokenAmount } from "@fleet-sdk/common";
 
 import { compile } from "@fleet-sdk/compiler";
-import { type R4ToR5Registers, SAFE_MIN_BOX_VALUE } from "@fleet-sdk/core";
+import { type R4ToR5Registers, type R4ToR6Registers, SAFE_MIN_BOX_VALUE } from "@fleet-sdk/core";
 import { type KeyedMockChainParty, mockUTxO } from "@fleet-sdk/mock-chain";
 
 import type { PriceRange } from "../../types";
 
 import { GridOrder } from "../../grid-order";
+import { LimitOrder, type LimitOrderType } from "../../limit-order";
 import { QUOTE_TOKEN_ID_PLACEHOLDER } from "../../order-contract";
 
 type Token = TokenAmount<bigint>;
 
-interface OrderParams {
+interface GridOrderParams {
   owner: KeyedMockChainParty;
   assets?: { base?: bigint; quote?: bigint };
   prices?: PriceRange;
+}
+
+interface LimitOrderParams {
+  owner: KeyedMockChainParty;
+  assets?: { base?: bigint; quote?: bigint };
+  price?: bigint;
 }
 
 export const SIGUSD_TOKEN_ID = "fbbaac7337d051c10fc3da0ccb864f4d32d40027551e1c3ea3ce361f39b91e40";
@@ -44,7 +51,7 @@ function compileScriptIfRequired(script: string): string | undefined {
 export function createGridOrderMocker(script: string, baseId: string, quoteId: string) {
   const newTree = compileScriptIfRequired(script)?.replace(QUOTE_TOKEN_ID_PLACEHOLDER, quoteId);
 
-  return (p: OrderParams): Box<bigint, R4ToR5Registers> => {
+  return (p: GridOrderParams): Box<bigint, R4ToR5Registers> => {
     const candidate = GridOrder.create({
       assets: !p.assets
         ? {
@@ -65,5 +72,38 @@ export function createGridOrderMocker(script: string, baseId: string, quoteId: s
       ...candidate,
       ergoTree: newTree ?? candidate.ergoTree,
     }) as Box<bigint, R4ToR5Registers>;
+  };
+}
+
+export function createLimitOrderMocker(script: string, baseId: string, quoteId: string) {
+  const newTree = compileScriptIfRequired(script)?.replace(QUOTE_TOKEN_ID_PLACEHOLDER, quoteId);
+
+  return (t: LimitOrderType, p: LimitOrderParams): Box<bigint, R4ToR6Registers> => {
+    const candidate = LimitOrder.create({
+      assets: !p.assets
+        ? t === "buy"
+          ? {
+              base: { tokenId: baseId, amount: 0n },
+              quote: { tokenId: quoteId, amount: 10n },
+            }
+          : {
+              base: { tokenId: baseId, amount: SAFE_MIN_BOX_VALUE },
+              quote: { tokenId: quoteId, amount: 0n },
+            }
+        : {
+            base: { tokenId: baseId, amount: p.assets?.base ?? 0n },
+            quote: { tokenId: quoteId, amount: p.assets?.quote ?? 0n },
+          },
+      price: p.price ?? 1n,
+      type: t,
+      owner: p.owner.address,
+    })
+      .setCreationHeight(1)
+      .build();
+
+    return mockUTxO({
+      ...candidate,
+      ergoTree: newTree ?? candidate.ergoTree,
+    }) as Box<bigint, R4ToR6Registers>;
   };
 }

@@ -24,9 +24,10 @@ import {
   SSigmaProp,
 } from "@fleet-sdk/serializer";
 
-import type { ActionHandler, AssetId, BuySellOrder, ExchangeableAssets, PriceRange } from "./types";
+import type { ActionHandler, BuySellOrder, ExchangeableAssets, PriceRange } from "./types";
 
 import { OrderContract } from "./order-contract";
+import { validateToken } from "./tokens";
 
 export const CONTRACTS = {
   E2T: new OrderContract(
@@ -45,6 +46,40 @@ export class GridOrder implements BuySellOrder<PriceRange> {
   #assets: ExchangeableAssets;
   #contract: OrderContract;
 
+  constructor(box: Box<Amount, R4ToR5Registers> | BoxCandidate<Amount, R4ToR5Registers>) {
+    if (CONTRACTS.E2T.validate(box.ergoTree)) {
+      this.#contract = CONTRACTS.E2T;
+    } else if (CONTRACTS.T2T.validate(box.ergoTree)) {
+      this.#contract = CONTRACTS.T2T;
+    } else {
+      throw Error("Invalid Grid Order contract");
+    }
+
+    this.#box = ensureUTxOBigInt(box) as Box<bigint, R4ToR5Registers>;
+    const quoteId = this.#contract.getQuoteId(box.ergoTree);
+
+    if (this.#contract.type === "E2T") {
+      if (!validateToken(quoteId, box, 0)) throw Error("Invalid quote token for the contract");
+      this.#assets = {
+        base: { tokenId: "ERG", amount: this.#box.value },
+        quote: { tokenId: quoteId, amount: this.#box.assets[0]?.amount ?? 0n },
+      };
+    } else {
+      const baseId = this.#box.assets[0]?.tokenId;
+      if (!baseId) throw Error("The base token is not specified in the box");
+      if (!validateToken(quoteId, box, 1)) throw Error("Invalid quote token for the contract");
+
+      this.#assets = {
+        base: { tokenId: baseId, amount: this.#box.assets[0]?.amount ?? 0n },
+        quote: { tokenId: quoteId, amount: this.#box.assets[1]?.amount ?? 0n },
+      };
+    }
+
+    const prices = SConstant.from<[bigint, bigint]>(box.additionalRegisters.R5);
+    if (prices.type.toString() !== "SColl[SLong]") throw Error("Invalid price register");
+    this.#price = { buy: prices.data[0], sell: prices.data[1] };
+  }
+
   get box(): Box<bigint, R4ToR5Registers> {
     return this.#box;
   }
@@ -61,58 +96,20 @@ export class GridOrder implements BuySellOrder<PriceRange> {
     return this.#contract;
   }
 
-  constructor(box: Box<Amount, R4ToR5Registers> | BoxCandidate<Amount, R4ToR5Registers>) {
-    if (CONTRACTS.E2T.validate(box.ergoTree)) {
-      this.#contract = CONTRACTS.E2T;
-    } else if (CONTRACTS.T2T.validate(box.ergoTree)) {
-      this.#contract = CONTRACTS.T2T;
-    } else {
-      throw new Error("Invalid Grid Order contract");
-    }
-
-    this.#box = ensureUTxOBigInt(box) as Box<bigint, R4ToR5Registers>;
-    const quoteId = this.#contract.getQuoteId(box.ergoTree);
-
-    if (this.#contract.type === "E2T") {
-      if (!validateToken(quoteId, box, 0)) throw new Error("Invalid quote token for the contract");
-      this.#assets = {
-        base: { tokenId: "ERG", amount: this.#box.value },
-        quote: { tokenId: quoteId, amount: this.#box.assets[0]?.amount ?? 0n },
-      };
-    } else {
-      const baseId = this.#box.assets[0]?.tokenId;
-      if (!baseId) throw new Error("The base token is not specified in the box");
-      if (!validateToken(quoteId, box, 1)) throw new Error("Invalid quote token for the contract");
-
-      this.#assets = {
-        base: { tokenId: baseId, amount: this.#box.assets[0]?.amount ?? 0n },
-        quote: { tokenId: quoteId, amount: this.#box.assets[1]?.amount ?? 0n },
-      };
-    }
-
-    const prices = SConstant.from<[bigint, bigint]>(box.additionalRegisters.R5);
-    if (prices.type.toString() !== "SColl[SLong]") throw new Error("Invalid order box");
-    this.#price = { buy: prices.data[0], sell: prices.data[1] };
-  }
-
-  close(): FleetPlugin {
-    return ({ addInputs }) => addInputs(this.#box);
-  }
-
   /**
    * Buys tokens with nanoergs at the price specified in the order.
    * @param amount - The amount of token units to buy.
    */
   buy(amount: bigint, handler?: ActionHandler): FleetPlugin {
     // TODO: add amounts validation
-    if (amount <= 0n) throw new Error("Amount must be greater than zero");
+    if (amount <= 0n) throw Error("Amount must be greater than zero");
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;
       const requiredBase = amount * this.#price.buy;
 
       const input = new ErgoUnsignedInput(box);
-      const output = OutputBuilder.from(box); // bind the output to the input box
+      const output = OutputBuilder.from(box);
 
       if (this.#contract.type === "E2T") {
         output
@@ -125,7 +122,7 @@ export class GridOrder implements BuySellOrder<PriceRange> {
       }
 
       const outputsLength = addOutputs(
-        output.setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }), // bind the output to the input box
+        output.setAdditionalRegisters({ R6: SColl(SByte, box.boxId) }), // bind the output to the input
       );
 
       addInputs(
@@ -145,7 +142,7 @@ export class GridOrder implements BuySellOrder<PriceRange> {
    */
   sell(amount: bigint, handler?: ActionHandler): FleetPlugin {
     // TODO: add amounts validation
-    if (amount <= 0n) throw new Error("Amount must be greater than zero");
+    if (amount <= 0n) throw Error("Amount must be greater than zero");
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;
@@ -179,13 +176,17 @@ export class GridOrder implements BuySellOrder<PriceRange> {
     };
   }
 
+  close(): FleetPlugin {
+    return ({ addInputs }) => addInputs(this.#box);
+  }
+
   static create(options: GridOrderCreationParams): OutputBuilder {
     const assets = options.assets;
-    if (assets.quote.tokenId === "ERG") throw new Error("Quote asset cannot be ERG");
+    if (assets.quote.tokenId === "ERG") throw Error("Quote asset cannot be ERG");
     if (!assets?.base.amount && !assets?.quote.amount)
-      throw new Error("At least one of base or quote assets must be specified");
+      throw Error("At least one of base or quote assets must be specified");
     if (!options.prices.buy || !options.prices.sell)
-      throw new Error("Prices must be specified for both buy and sell");
+      throw Error("Prices must be specified for both buy and sell");
 
     let builder: OutputBuilder;
     if (assets.base.tokenId === "ERG") {
@@ -206,11 +207,6 @@ export class GridOrder implements BuySellOrder<PriceRange> {
       R5: SColl(SLong, [options.prices.buy, options.prices.sell]),
     });
   }
-}
-
-function validateToken(tokenId: AssetId, box: BoxCandidate<Amount>, index: number): boolean {
-  const token = box.assets[index];
-  return !token || token.tokenId === tokenId;
 }
 
 export interface GridOrderCreationParams {

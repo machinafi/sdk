@@ -51,7 +51,7 @@ describe("Limit order | erg <-> token", () => {
     alice.addBalance({ nanoergs: ONE_ERG });
 
     const BUY_AMOUNT = 10n; // buying 10 tokens
-    const PAY_AMOUNT = BUY_AMOUNT * price; // 10 * 5 = 50 ERG
+    const PAY_AMOUNT = BUY_AMOUNT * price; // 10 * 5 = 50 nanoerg
 
     const transaction = new TransactionBuilder(chain.height)
       .extend(order.buy(BUY_AMOUNT)) // buy
@@ -67,7 +67,7 @@ describe("Limit order | erg <-> token", () => {
 
     expect(contract.utxos.length).toBe(1);
     expect(contract.balance).toStrictEqual({
-      nanoergs: order.box.value + PAY_AMOUNT, // contract now has 50 more ERG
+      nanoergs: order.box.value + PAY_AMOUNT, // contract now has 50 more nanoerg
       tokens: [
         sigusd(order.assets.quote.amount - BUY_AMOUNT), // contract now has 100 - 10 = 90 SigUSD left
       ],
@@ -79,7 +79,52 @@ describe("Limit order | erg <-> token", () => {
     });
   });
 
-  it.skip("Should fully buy tokens and send erg to the owner", () => {});
+  it("Should fully buy tokens and send erg to the owner", () => {
+    // arrange
+    const price = 5n;
+    const order = new LimitOrder(
+      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
+    );
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG });
+    chain.addParty(bob);
+
+    const BUY_AMOUNT = 100n; // buying all 100 tokens
+    const PAY_AMOUNT = BUY_AMOUNT * price; // 100 * 5 = 500 nanoerg
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.buy(BUY_AMOUNT)) // buy
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    const success = chain.execute(transaction, { signers: [alice] });
+
+    // assert
+    expect(success).toBe(true);
+
+    // order box must be destroyed
+    expect(contract.utxos.length).toBe(0);
+    expect(contract.balance).toStrictEqual({
+      nanoergs: 0n,
+      tokens: [],
+    });
+
+    expect(alice.utxos.length).toBe(1);
+    expect(alice.balance).toStrictEqual({
+      nanoergs: ONE_ERG - PAY_AMOUNT,
+      tokens: [sigusd(BUY_AMOUNT)],
+    });
+
+    // funds must be sent to the owner
+    expect(bob.utxos.length).toBe(1);
+    expect(bob.balance).toStrictEqual({
+      nanoergs: order.box.value + PAY_AMOUNT,
+      tokens: [],
+    });
+  });
 
   it.skip("Should partially sell tokens", () => {});
 

@@ -1,6 +1,5 @@
 import type {
   Box,
-  ErgoAddress,
   ErgoUnsignedInput,
   FleetPlugin,
   OutputBuilder,

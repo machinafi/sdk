@@ -103,26 +103,36 @@ export class LimitOrder implements BuySellOrder {
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;
       const requiredBase = amount * this.#price;
+      const newOutputValue = box.value + requiredBase;
 
       const input = new ErgoUnsignedInput(box);
-      const output = OutputBuilder.from(box);
+      let output: OutputBuilder;
 
-      if (this.#contract.type === "E2T") {
-        // todo: handle order fulfilling, if no tokens left, it must send assets to the order owner (r4)
+      const fulfilling = amount >= this.#assets.quote.amount;
+      if (fulfilling) {
+        // TODO: here we are considering R4 is a public key, but it's not always the case, let's handle SigmaProp properly
+        const owner = SConstant.from<Uint8Array>(box.additionalRegisters.R4);
+        if (owner.type.toString() !== "SSigmaProp") throw Error("Invalid owner register");
 
-        output
-          .setValue(box.value + requiredBase)
-          .addTokens({ tokenId: this.#assets.quote.tokenId, amount: amount * -1n }); // fleet will deduct the amount from the existing tokens
+        output = new OutputBuilder(newOutputValue, ErgoAddress.fromPublicKey(owner.data));
       } else {
-        throw Error("Not implemented");
-        // output
-        //   .addTokens({ tokenId: this.#assets.base.tokenId, amount: requiredBase }) // fleet will sum the amount to the existing tokens
-        //   .addTokens({ tokenId: this.#assets.quote.tokenId, amount: amount * -1n }); // fleet will sum the amount to the existing tokens
+        output = OutputBuilder.from(box);
+
+        if (this.#contract.type === "E2T") {
+          output
+            .setValue(newOutputValue)
+            .addTokens({ tokenId: this.#assets.quote.tokenId, amount: amount * -1n }); // fleet will deduct the amount from the existing tokens
+        } else {
+          throw Error("Not implemented");
+          // output
+          //   .addTokens({ tokenId: this.#assets.base.tokenId, amount: requiredBase }) // fleet will sum the amount to the existing tokens
+          //   .addTokens({ tokenId: this.#assets.quote.tokenId, amount: amount * -1n }); // fleet will sum the amount to the existing tokens
+        }
+
+        output.setAdditionalRegisters({ R7: SColl(SByte, box.boxId) }); // bind the output to the input
       }
 
-      const outputsLength = addOutputs(
-        output.setAdditionalRegisters({ R7: SColl(SByte, box.boxId) }), // bind the output to the input
-      );
+      const outputsLength = addOutputs(output);
 
       // bind input to the recreated output
       addInputs(input.setContextExtension({ 0: SInt(outputsLength - 1) }));

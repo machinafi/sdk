@@ -4,7 +4,13 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { LimitOrder } from "../../limit-order";
 import E2TScript from "../limit/e2t-limit-order.es?raw";
-import { createLimitOrderMocker, ONE_ERG, sigusd, SIGUSD_TOKEN_ID } from "./utils";
+import {
+  createLimitOrderMocker,
+  ONE_ERG,
+  sigusd,
+  SIGUSD_TOKEN_ID,
+  UNPROVEN_SCHNORR_ERROR,
+} from "./utils";
 
 /**
  * This test suite covers the ERG <-> Token limit order contract.
@@ -51,7 +57,7 @@ describe("Limit order | erg <-> token", () => {
     alice.addBalance({ nanoergs: ONE_ERG });
 
     const BUY_AMOUNT = 10n; // buying 10 tokens
-    const PAY_AMOUNT = BUY_AMOUNT * price; // 10 * 5 = 50 nanoerg
+    const PAY_AMOUNT = BUY_AMOUNT * price; // 10 * 5 = 50 nanoergs
 
     const transaction = new TransactionBuilder(chain.height)
       .extend(order.buy(BUY_AMOUNT)) // buy
@@ -67,7 +73,7 @@ describe("Limit order | erg <-> token", () => {
 
     expect(contract.utxos.length).toBe(1);
     expect(contract.balance).toStrictEqual({
-      nanoergs: order.box.value + PAY_AMOUNT, // contract now has 50 more nanoerg
+      nanoergs: order.box.value + PAY_AMOUNT, // contract now has 50 more nanoergs
       tokens: [
         sigusd(order.assets.quote.amount - BUY_AMOUNT), // contract now has 100 - 10 = 90 SigUSD left
       ],
@@ -134,7 +140,17 @@ describe("Limit order | erg <-> token", () => {
 
   it.skip("Should allow operations in the child orders", () => {});
 
-  it.skip("Should not allow a third party to close the order", () => {});
+  it("Should not allow a third party to close the order", () => {
+    // arrange
+    const order = new LimitOrder(mockOrderBox("buy", { owner: bob }));
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.close()) // trying to close the order
+      .sendChangeTo(alice.address) // sending to Alice, but Bob is the owner
+      .build();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(UNPROVEN_SCHNORR_ERROR);
+  });
 
   it.skip("Should not allow buying tokens when underpaying", () => {});
 

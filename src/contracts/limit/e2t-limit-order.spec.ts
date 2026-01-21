@@ -3,14 +3,14 @@ import { MockChain } from "@fleet-sdk/mock-chain";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { LimitOrder } from "../../limit-order";
-import E2TScript from "../limit/e2t-limit-order.es?raw";
 import {
   createLimitOrderMocker,
   ONE_ERG,
   sigusd,
   SIGUSD_TOKEN_ID,
   UNPROVEN_SCHNORR_ERROR,
-} from "./utils";
+} from "../../tests/utils";
+import E2TScript from "../limit/e2t-limit-order.es?raw";
 
 /**
  * This test suite covers the ERG <-> Token limit order contract.

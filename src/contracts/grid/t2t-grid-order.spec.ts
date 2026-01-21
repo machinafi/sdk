@@ -17,7 +17,6 @@ import { MockChain } from "@fleet-sdk/mock-chain";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { GridOrder } from "../../grid-order";
-import T2TScript from "../grid/t2t-grid-order.es?raw";
 import {
   createGridOrderMocker,
   FAKE_TOKEN_ID,
@@ -29,7 +28,8 @@ import {
   UNPROVEN_SCHNORR_ERROR,
   RSN_TOKEN_ID,
   rsn,
-} from "./utils";
+} from "../../tests/utils";
+import T2TScript from "../grid/t2t-grid-order.es?raw";
 
 /**
  * This test suite covers the Token <-> Token grid order contract.

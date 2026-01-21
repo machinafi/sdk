@@ -4,11 +4,11 @@ import { compile } from "@fleet-sdk/compiler";
 import { type R4ToR5Registers, type R4ToR6Registers, SAFE_MIN_BOX_VALUE } from "@fleet-sdk/core";
 import { type KeyedMockChainParty, mockUTxO } from "@fleet-sdk/mock-chain";
 
-import type { PriceRange } from "../../types";
+import type { PriceRange } from "../types";
 
-import { GridOrder } from "../../grid-order";
-import { LimitOrder, type LimitOrderType } from "../../limit-order";
-import { QUOTE_TOKEN_ID_PLACEHOLDER } from "../../order-contract";
+import { GridOrder } from "../grid-order";
+import { LimitOrder, type LimitOrderType } from "../limit-order";
+import { QUOTE_TOKEN_ID_PLACEHOLDER } from "../order-contract";
 
 type Token = TokenAmount<bigint>;
 

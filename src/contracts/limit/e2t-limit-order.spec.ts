@@ -1,11 +1,15 @@
-import { TransactionBuilder } from "@fleet-sdk/core";
+import type { _10n } from "@fleet-sdk/common";
+
+import { SInt, TransactionBuilder } from "@fleet-sdk/core";
 import { MockChain } from "@fleet-sdk/mock-chain";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { LimitOrder } from "../../limit-order";
 import {
   createLimitOrderMocker,
+  fakeToken,
   ONE_ERG,
+  REDUCED_TO_FALSE_ERROR,
   sigusd,
   SIGUSD_TOKEN_ID,
   UNPROVEN_SCHNORR_ERROR,
@@ -166,5 +170,74 @@ describe("Limit order | erg <-> token", () => {
 
   it.skip("Should not allow changing the order contract", () => {});
 
-  it.skip("Should not allow spending multiple orders to a single child output", () => {});
+  it("Should not allow spending multiple orders to a single child output for partially filled orders", () => {
+    // arrange
+    const price = 5n;
+    const order1 = new LimitOrder(
+      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
+    );
+    const order2 = new LimitOrder(
+      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
+    );
+
+    contract.addUTxOs(order1.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .from(alice.utxos)
+      .extend(
+        order1.buy(10n, (_, input) => {
+          // bind both orders to the same output index 0
+          input.setContextExtension({ 0: SInt(0) });
+        }),
+      )
+      .extend(
+        order2.buy(10n, (_, input) => {
+          // bind both orders to the same output index 0
+          input.setContextExtension({ 0: SInt(0) });
+        }),
+      )
+      .sendChangeTo(alice.address)
+      .build()
+      .toEIP12Object();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should not allow spending multiple orders to a single child output for fully filled orders", () => {
+    // arrange
+    const price = 5n;
+    const fullAmount = 100n;
+    const order1 = new LimitOrder(
+      mockOrderBox("buy", { owner: bob, assets: { quote: fullAmount }, price }),
+    );
+    const order2 = new LimitOrder(
+      mockOrderBox("buy", { owner: bob, assets: { quote: fullAmount }, price }),
+    );
+
+    contract.addUTxOs(order1.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .from(alice.utxos)
+      .extend(
+        order1.buy(fullAmount, (_, input) => {
+          // bind both orders to the same output index 0
+          input.setContextExtension({ 0: SInt(0) });
+        }),
+      )
+      .extend(
+        order2.buy(fullAmount, (_, input) => {
+          // bind both orders to the same output index 0
+          input.setContextExtension({ 0: SInt(0) });
+        }),
+      )
+      .sendChangeTo(alice.address)
+      .build()
+      .toEIP12Object();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
 });

@@ -45,8 +45,11 @@
     val tokensLeft = if (buying) { childTokenAmount } else { selfTokenAmount };
     val partiallyFilled = tokensLeft > 0L;
 
-    // if the order not filled, it must preserve the state of the order box
     val validRecreation = if (partiallyFilled) {
+      // =============================== //
+      // Partially filled                //
+      // Recreate box and preserve state //
+      // =============================== //
                                                             // should be true if:
       childBox.propositionBytes == SELF.propositionBytes && // 1. preserve proposition
       childToken._1 == TOKEN_ID &&                          // 2. preserve token ID, if any
@@ -54,8 +57,14 @@
       childBox.R5[Long].get == price &&                     // 4. preserve price
       childBox.R6[Boolean].get == buying &&                 // 5. preserve order type
       childBox.R7[Coll[Byte]].get == SELF.id                // 6. bind the child to the parent box
-    } else { // if the child box contains no tokens, funds must be sent to the owner
-      childBox.propositionBytes == owner.propBytes
+    } else {
+      // =============================== //
+      // Fulfilled                       //
+      // Send funds to the owner         //
+      // =============================== //
+                                                            // should be true if:
+      childBox.propositionBytes == owner.propBytes &&       // 1. funds are sent to the owner
+      childBox.R4[Coll[Byte]].get == SELF.id                // 2. bind the child to the parent box
     }
 
     val validExchange = if (buying) {

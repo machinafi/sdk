@@ -42,8 +42,15 @@ export class LimitOrder implements BuySellOrder {
   #contract: OrderContract;
   #type: LimitOrderType;
 
-  constructor(box: Box<Amount, R4ToR6Registers> | BoxCandidate<Amount, R4ToR6Registers>) {
-    if (CONTRACTS.E2T.validate(box.ergoTree)) {
+  constructor(
+    box: Box<Amount, R4ToR6Registers> | BoxCandidate<Amount, R4ToR6Registers>,
+    contract?: OrderContract,
+  ) {
+    if (contract) {
+      if (!contract.validate(box.ergoTree))
+        throw Error("The box does not match the provided contract");
+      this.#contract = contract;
+    } else if (CONTRACTS.E2T.validate(box.ergoTree)) {
       this.#contract = CONTRACTS.E2T;
     } else if (CONTRACTS.T2T.validate(box.ergoTree)) {
       this.#contract = CONTRACTS.T2T;
@@ -206,7 +213,7 @@ export class LimitOrder implements BuySellOrder {
     return ({ addInputs }) => addInputs(this.#box);
   }
 
-  static create(options: LimitOrderCreationParams): OutputBuilder {
+  static create(options: LimitOrderCreationParams, contract?: OrderContract): OutputBuilder {
     const assets = options.assets;
     const buy = options.type === "buy";
 
@@ -220,12 +227,16 @@ export class LimitOrder implements BuySellOrder {
 
     let builder: OutputBuilder;
     if (assets.base.tokenId === "ERG") {
-      const contract = CONTRACTS.E2T.new(assets.quote.tokenId);
+      const tree = contract
+        ? contract.new(assets.quote.tokenId)
+        : CONTRACTS.E2T.new(assets.quote.tokenId);
       const baseAmount = assets.base.amount || estimateMinBoxValue();
-      builder = new OutputBuilder(baseAmount, contract).addTokens(assets.quote);
+      builder = new OutputBuilder(baseAmount, tree).addTokens(assets.quote);
     } else {
-      const contract = CONTRACTS.T2T.new(assets.quote.tokenId);
-      builder = new OutputBuilder(estimateMinBoxValue(), contract)
+      const tree = contract
+        ? contract.new(assets.quote.tokenId)
+        : CONTRACTS.T2T.new(assets.quote.tokenId);
+      builder = new OutputBuilder(estimateMinBoxValue(), tree)
         .addTokens(assets.base)
         .addTokens(assets.quote);
     }

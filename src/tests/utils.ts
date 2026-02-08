@@ -8,7 +8,7 @@ import type { PriceRange } from "../types";
 
 import { GridOrder } from "../grid-order";
 import { LimitOrder, type LimitOrderType } from "../limit-order";
-import { QUOTE_TOKEN_ID_PLACEHOLDER } from "../order-contract";
+import { OrderContract, QUOTE_TOKEN_ID_PLACEHOLDER } from "../order-contract";
 
 type Token = TokenAmount<bigint>;
 
@@ -76,34 +76,41 @@ export function createGridOrderMocker(script: string, baseId: string, quoteId: s
 }
 
 export function createLimitOrderMocker(script: string, baseId: string, quoteId: string) {
-  const newTree = compileScriptIfRequired(script)?.replace(QUOTE_TOKEN_ID_PLACEHOLDER, quoteId);
+  const newTree = compileScriptIfRequired(script);
+  const newContract = newTree ? new OrderContract(newTree, "E2T") : undefined;
 
-  return (t: LimitOrderType, p: LimitOrderParams): Box<bigint, R4ToR6Registers> => {
-    const candidate = LimitOrder.create({
-      assets: !p.assets
-        ? t === "buy"
-          ? {
-              base: { tokenId: baseId, amount: 0n },
-              quote: { tokenId: quoteId, amount: 10n },
-            }
+  return (t: LimitOrderType, p: LimitOrderParams): LimitOrder => {
+    const candidate = LimitOrder.create(
+      {
+        assets: !p.assets
+          ? t === "buy"
+            ? {
+                base: { tokenId: baseId, amount: 0n },
+                quote: { tokenId: quoteId, amount: 10n },
+              }
+            : {
+                base: { tokenId: baseId, amount: SAFE_MIN_BOX_VALUE },
+                quote: { tokenId: quoteId, amount: 0n },
+              }
           : {
-              base: { tokenId: baseId, amount: SAFE_MIN_BOX_VALUE },
-              quote: { tokenId: quoteId, amount: 0n },
-            }
-        : {
-            base: { tokenId: baseId, amount: p.assets?.base ?? 0n },
-            quote: { tokenId: quoteId, amount: p.assets?.quote ?? 0n },
-          },
-      price: p.price ?? 1n,
-      type: t,
-      owner: p.owner.address,
-    })
+              base: { tokenId: baseId, amount: p.assets?.base ?? 0n },
+              quote: { tokenId: quoteId, amount: p.assets?.quote ?? 0n },
+            },
+        price: p.price ?? 1n,
+        type: t,
+        owner: p.owner.address,
+      },
+      newContract,
+    )
       .setCreationHeight(1)
       .build();
 
-    return mockUTxO({
-      ...candidate,
-      ergoTree: newTree ?? candidate.ergoTree,
-    }) as Box<bigint, R4ToR6Registers>;
+    return new LimitOrder(
+      mockUTxO({
+        ...candidate,
+        ergoTree: candidate.ergoTree,
+      }) as Box<bigint, R4ToR6Registers>,
+      newContract,
+    );
   };
 }

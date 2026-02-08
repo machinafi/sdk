@@ -22,27 +22,28 @@ import {
   SIGUSD_TOKEN_ID,
   UNPROVEN_SCHNORR_ERROR,
 } from "../../tests/utils";
-import E2TScript from "../limit/e2t-limit-order.es?raw";
+import E2TScript from "./e2t-limit-order.es?raw";
 
 /**
  * This test suite covers the ERG <-> Token limit order contract.
  */
 describe("Limit order | erg <-> token", () => {
   // E2T contract is implicitly selected if ERG is the base asset.
-  const mockOrderBox = createLimitOrderMocker(E2TScript, "ERG", SIGUSD_TOKEN_ID);
+  const mockLimitOrder = createLimitOrderMocker(E2TScript, "ERG", SIGUSD_TOKEN_ID);
 
   const chain = new MockChain();
   const bob = chain.newParty("Bob");
   const alice = chain.newParty("Alice");
-  const contract = chain.addParty(mockOrderBox("buy", { owner: bob }).ergoTree, "Limit contract");
+  const contract = chain.addParty(
+    mockLimitOrder("buy", { owner: bob }).box.ergoTree,
+    "Limit contract",
+  );
 
   afterEach(() => chain.reset({ clearParties: true }));
 
   it("Should close the order and withdrawal funds", () => {
     // arrange
-    const order = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { base: ONE_ERG, quote: 100n } }),
-    );
+    const order = mockLimitOrder("buy", { owner: bob, assets: { base: ONE_ERG, quote: 100n } });
     const transaction = new TransactionBuilder(chain.height)
       .extend(order.close()) // close the order
       .sendChangeTo(bob.address)
@@ -61,9 +62,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should partially buy tokens", () => {
     // arrange
     const price = 5n;
-    const order = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
-    );
+    const order = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG });
@@ -100,9 +99,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should fully buy tokens and send erg to the owner", () => {
     // arrange
     const price = 5n;
-    const order = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
-    );
+    const order = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG });
@@ -147,9 +144,11 @@ describe("Limit order | erg <-> token", () => {
   it("Should partially sell tokens, when contract has no quote tokens", () => {
     // arrange
     const price = 10n;
-    const order = new LimitOrder(
-      mockOrderBox("sell", { owner: bob, assets: { base: ONE_ERG, quote: 0n }, price }),
-    );
+    const order = mockLimitOrder("sell", {
+      owner: bob,
+      assets: { base: ONE_ERG, quote: 0n },
+      price,
+    });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ tokens: [sigusd(100n)], nanoergs: ONE_ERG }); // Alice has 100 tokens to sell
@@ -184,9 +183,11 @@ describe("Limit order | erg <-> token", () => {
   it("Should partially sell tokens, when contract has quote tokens", () => {
     // arrange
     const price = 10n;
-    const order = new LimitOrder(
-      mockOrderBox("sell", { owner: bob, assets: { base: ONE_ERG, quote: 5n }, price }),
-    );
+    const order = mockLimitOrder("sell", {
+      owner: bob,
+      assets: { base: ONE_ERG, quote: 5n },
+      price,
+    });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ tokens: [sigusd(100n)], nanoergs: ONE_ERG }); // Alice has 100 tokens to sell
@@ -221,9 +222,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should fully sell tokens and send to the owner", () => {
     // arrange
     const price = 10n;
-    const order = new LimitOrder(
-      mockOrderBox("sell", { owner: bob, assets: { base: 10000n }, price }),
-    );
+    const order = mockLimitOrder("sell", { owner: bob, assets: { base: 10000n }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(1000n)] }); // Alice has tokens to sell
@@ -267,13 +266,8 @@ describe("Limit order | erg <-> token", () => {
 
   it("Should compose multiple orders in the same transaction", () => {
     // arrange
-    const orderA = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price: 5n }),
-    );
-
-    const orderB = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 10n }, price: 7n }),
-    );
+    const orderA = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price: 5n });
+    const orderB = mockLimitOrder("buy", { owner: bob, assets: { quote: 10n }, price: 7n });
 
     contract.addUTxOs(orderA.box).addUTxOs(orderB.box);
     alice.addBalance({ nanoergs: ONE_ERG });
@@ -314,9 +308,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should allow operations in the child orders", () => {
     // arrange
     const price = 10n;
-    const fatherOrder = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
-    );
+    const fatherOrder = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
 
     contract.addUTxOs(fatherOrder.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [] });
@@ -358,7 +350,7 @@ describe("Limit order | erg <-> token", () => {
 
   it("Should not allow a third party to close the order", () => {
     // arrange
-    const order = new LimitOrder(mockOrderBox("buy", { owner: bob }));
+    const order = mockLimitOrder("buy", { owner: bob });
     const transaction = new TransactionBuilder(chain.height)
       .extend(order.close()) // trying to close the order
       .sendChangeTo(alice.address) // sending to Alice, but Bob is the owner
@@ -371,9 +363,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should not allow buying tokens when underpaying", () => {
     // arrange
     const price = 5n;
-    const order = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
-    );
+    const order = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG });
@@ -391,9 +381,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should not allow selling tokens when underpaying", () => {
     // arrange
     const price = 10n;
-    const order = new LimitOrder(
-      mockOrderBox("sell", { owner: bob, assets: { base: ONE_ERG }, price }),
-    );
+    const order = mockLimitOrder("sell", { owner: bob, assets: { base: ONE_ERG }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n)] });
@@ -413,9 +401,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should not allow buying when the Token ID is swapped", () => {
     // arrange
     const price = 5n;
-    const order = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
-    );
+    const order = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
@@ -436,9 +422,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should not allow selling when the Token ID is swapped", () => {
     // arrange
     const price = 10n;
-    const order = new LimitOrder(
-      mockOrderBox("sell", { owner: bob, assets: { base: ONE_ERG }, price }),
-    );
+    const order = mockLimitOrder("sell", { owner: bob, assets: { base: ONE_ERG }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(100n)] });
@@ -459,9 +443,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should not allow changing the owner of the order", () => {
     // arrange
     const price = 5n;
-    const order = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
-    );
+    const order = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
@@ -485,9 +467,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should not allow changing the price of the order", () => {
     // arrange
     const price = 5n;
-    const order = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
-    );
+    const order = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
@@ -511,9 +491,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should not allow changing the order contract", () => {
     // arrange
     const price = 5n;
-    const order = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
-    );
+    const order = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
@@ -535,12 +513,8 @@ describe("Limit order | erg <-> token", () => {
   it("Should not allow spending multiple orders to a single child output for partially filled orders", () => {
     // arrange
     const price = 5n;
-    const order1 = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
-    );
-    const order2 = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: 100n }, price }),
-    );
+    const order1 = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
+    const order2 = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
 
     contract.addUTxOs(order1.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
@@ -571,12 +545,9 @@ describe("Limit order | erg <-> token", () => {
     // arrange
     const price = 5n;
     const fullAmount = 100n;
-    const order1 = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: fullAmount }, price }),
-    );
-    const order2 = new LimitOrder(
-      mockOrderBox("buy", { owner: bob, assets: { quote: fullAmount }, price }),
-    );
+
+    const order1 = mockLimitOrder("buy", { owner: bob, assets: { quote: fullAmount }, price });
+    const order2 = mockLimitOrder("buy", { owner: bob, assets: { quote: fullAmount }, price });
 
     contract.addUTxOs(order1.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });

@@ -1,12 +1,14 @@
 {
   "name": "gridz",
-  "module": "src/index.ts",
-  "type": "module",
   "private": true,
+  "type": "module",
+  "module": "src/index.ts",
   "scripts": {
     "test:unit": "vitest --run",
     "watch:unit": "vitest",
-    "watch:unit:recompile": "RECOMPILE=true vitest"
+    "watch:unit:recompile": "RECOMPILE=true vitest",
+    "fmt": "oxfmt",
+    "lint": "oxlint"
   },
   "dependencies": {
     "@fleet-sdk/common": "^0.10.0",
@@ -15,11 +17,12 @@
     "@fleet-sdk/serializer": "^0.10.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
     "@fleet-sdk/compiler": "^0.10.0",
     "@fleet-sdk/mock-chain": "^0.10.0",
-    "@types/bun": "latest",
-    "vitest": "^3.2.4"
+    "@types/node": "latest",
+    "oxfmt": "^0.24.0",
+    "oxlint": "^1.39.0",
+    "vitest": "^4.0.17"
   },
   "peerDependencies": {
     "typescript": "^5"

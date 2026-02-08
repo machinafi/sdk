@@ -16,7 +16,6 @@ These are auto-compounding two-way grid order contracts for ERG to TOKEN (`E2T`)
 Both contracts share the same logic
 
 - **Trading:**
-
   - Extract context variables to determine action and output.
   - Ensure contract state and token IDs are preserved.
   - Ensure that outputs are bound to parent inputs to prevent **input aggregation attacks**.

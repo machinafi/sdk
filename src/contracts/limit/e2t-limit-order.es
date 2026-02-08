@@ -29,8 +29,8 @@
   val SAFE_MIN_BOX_VALUE = 1000000L;
 
   val owner = SELF.R4[SigmaProp].get;
-  val price = SELF.R5[Long].get;     // price in nanoergs
-  val buying = SELF.R6[Boolean].get; // true if the user is buying tokens, false if closing the order
+  val price = SELF.R5[Long].get;       // price in nanoergs
+  val buyOrder = SELF.R6[Boolean].get; // true if this is a buy order, false if sell order
 
   val childBoxIndex = getVar[Int](0);
   val trading = childBoxIndex.isDefined;
@@ -43,10 +43,10 @@
     val selfTokenAmount = selfToken._2;
     val childTokenAmount = childToken._2;
 
-    val partiallyFilled = if (buying) { childTokenAmount > 0L } else { SELF.value >= SAFE_MIN_BOX_VALUE };
-    val validRecreation = if (partiallyFilled) {
+    val isPartial = if (buyOrder) { childTokenAmount > 0L } else { SELF.value >= SAFE_MIN_BOX_VALUE };
+    val validRecreation = if (isPartial) {
       // =============================== //
-      // Partially filled                //
+      // Partially filling               //
       // Recreate box and preserve state //
       // =============================== //
                                                             // should be true if:
@@ -54,11 +54,11 @@
       childToken._1 == TOKEN_ID &&                          // 2. preserve token ID, if any
       childBox.R4[SigmaProp].get == owner &&                // 3. preserve owner script
       childBox.R5[Long].get == price &&                     // 4. preserve price
-      childBox.R6[Boolean].get == buying &&                 // 5. preserve order type
+      childBox.R6[Boolean].get == buyOrder &&               // 5. preserve order type
       childBox.R7[Coll[Byte]].get == SELF.id                // 6. bind the child to the parent box
     } else {
       // =============================== //
-      // Fulfilled                       //
+      // Fully filling                   //
       // Send funds to the owner         //
       // =============================== //
                                                             // should be true if:
@@ -66,7 +66,7 @@
       childBox.R4[Coll[Byte]].get == SELF.id                // 2. bind the child to the parent box
     }
 
-    val validExchange = if (buying) {
+    val validExchange = if (buyOrder) {
       // ======================================= //
       // The user is BUYING tokens with nanoergs //
       // Asset flow: nanoergs IN, tokens OUT     //

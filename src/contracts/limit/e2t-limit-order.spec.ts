@@ -264,6 +264,28 @@ describe("Limit order | erg <-> token", () => {
     });
   });
 
+  it("Should now allow stealing leftover nanoergs when fully filling a sell order", () => {
+    // arrange
+    const price = 10n;
+    const order = mockLimitOrder("sell", { owner: bob, assets: { base: 10000n }, price });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(1000n)] }); // Alice has tokens to sell
+    chain.addParty(bob);
+
+    const SELL_AMOUNT = 999n; // selling enough tokens to nearly deplete ERG in the contract
+    const PAY_AMOUNT = SELL_AMOUNT * price; // 999 * 10 = 9990 nanoergs
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.sell(SELL_AMOUNT, (output) => output.setValue(output.value - 1n))) // trying to steal 1 nanoerg from the contract by underpaying
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
   it("Should compose multiple orders in the same transaction", () => {
     // arrange
     const orderA = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price: 5n });

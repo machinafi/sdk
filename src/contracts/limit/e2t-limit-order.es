@@ -26,6 +26,7 @@
   val T = 0; // token index
   val TOKEN_ID = fromBase16("cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e");
   val EMPTY_TOKEN = (TOKEN_ID, 0L);
+  val SAFE_MIN_BOX_VALUE = 1000000L;
 
   val owner = SELF.R4[SigmaProp].get;
   val price = SELF.R5[Long].get;     // price in nanoergs
@@ -42,9 +43,7 @@
     val selfTokenAmount = selfToken._2;
     val childTokenAmount = childToken._2;
 
-    val tokensLeft = if (buying) { childTokenAmount } else { selfTokenAmount };
-    val partiallyFilled = tokensLeft > 0L;
-
+    val partiallyFilled = if (buying) { childTokenAmount > 0L } else { SELF.value >= SAFE_MIN_BOX_VALUE };
     val validRecreation = if (partiallyFilled) {
       // =============================== //
       // Partially filled                //

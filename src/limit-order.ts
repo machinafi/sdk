@@ -4,6 +4,7 @@ import {
   ErgoUnsignedInput,
   estimateMinBoxValue,
   OutputBuilder,
+  SAFE_MIN_BOX_VALUE,
   type Amount,
   type FleetPlugin,
   type R4ToR6Registers,
@@ -26,7 +27,7 @@ import { validateToken } from "./tokens";
 
 const CONTRACTS = {
   E2T: new OrderContract(
-    "1a9502070e20cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e050004000400050005000500d806d601e30004d6027300d603860272027301d604e4c6a70601d605e4c6a70408d606e4c6a7050595e67201d804d607b2a5e4720100d608b2db630872077302017203d6098c720802d60a8cb2db6308a7730301720302d1ed95919572047209720a7304ededededed93c27207c2a7938c720801720293e4c672070408720593e4c672070505720693e4c672070601720493e4c67207070ec5a7ed93c27207d0720593e4c67207040ec5a7957204d801d60b99c17207c1a7ed91720b730592720b9c99720a72097206d801d60b997209720aed91720b7306929c720b720699c1a7c172077205",
+    "1a9c02080e20cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e05000400040005000580897a05000500d806d601e30004d6027300d603860272027301d604e4c6a70601d605e4c6a70408d606e4c6a7050595e67201d804d607b2a5e4720100d608b2db630872077302017203d6098c720802d60a8cb2db6308a7730301720302d1ed95957204917209730492c1a77305ededededed93c27207c2a7938c720801720293e4c672070408720593e4c672070505720693e4c672070601720493e4c67207070ec5a7ed93c27207d0720593e4c67207040ec5a7957204d801d60b99c17207c1a7ed91720b730692720b9c99720a72097206d801d60b997209720aed91720b7307929c720b720699c1a7c172077205",
     "E2T",
   ),
   T2T: new OrderContract("0000", "T2T"),
@@ -115,9 +116,14 @@ export class LimitOrder implements BuySellOrder {
         if (owner.type.toString() !== "SSigmaProp") throw Error("Invalid owner register");
 
         let ownerAddress = ErgoAddress.fromPublicKey(owner.data);
-        output = new OutputBuilder(newOutputValue, ownerAddress).setAdditionalRegisters({
-          R4: SColl(SByte, box.boxId),
-        });
+
+        if (this.#contract.type === "E2T") {
+          output = new OutputBuilder(newOutputValue, ownerAddress).setAdditionalRegisters({
+            R4: SColl(SByte, box.boxId),
+          });
+        } else {
+          throw Error("Not implemented");
+        }
       } else {
         output = OutputBuilder.from(box);
 
@@ -144,9 +150,56 @@ export class LimitOrder implements BuySellOrder {
     };
   }
 
-  sell(_amount: bigint, _handler?: ActionHandler): FleetPlugin {
+  sell(amount: bigint, handler?: ActionHandler): FleetPlugin {
+    // TODO: add amounts validation
     if (this.#type !== "sell") throw Error("Cannot sell to a buy order");
-    throw Error("not implemented");
+    if (amount <= 0n) throw Error("Amount must be greater than zero");
+
+    return ({ addInputs, addOutputs }) => {
+      const box = this.#box;
+      const basePayout = amount * this.#price;
+
+      const input = new ErgoUnsignedInput(box);
+      let output: OutputBuilder;
+
+      const fulfilling = SAFE_MIN_BOX_VALUE >= this.#assets.base.amount - basePayout;
+      if (fulfilling) {
+        console.log("Fulfilling the entire order, returning the collateral to the seller");
+        // TODO: here we are considering R4 is a public key, but it's not always the case, let's handle SigmaProp properly
+        const owner = SConstant.from<Uint8Array>(box.additionalRegisters.R4);
+        if (owner.type.toString() !== "SSigmaProp") throw Error("Invalid owner register");
+
+        let ownerAddress = ErgoAddress.fromPublicKey(owner.data);
+
+        if (this.#contract.type === "E2T") {
+          output = new OutputBuilder(box.value - basePayout, ownerAddress)
+            .addTokens(this.#assets.quote)
+            .addTokens({ tokenId: this.#assets.quote.tokenId, amount })
+            .setAdditionalRegisters({ R4: SColl(SByte, box.boxId) });
+        } else {
+          throw Error("Not implemented");
+        }
+      } else {
+        output = OutputBuilder.from(box);
+
+        if (this.#contract.type === "E2T") {
+          output
+            .setValue(box.value - basePayout)
+            .addTokens({ tokenId: this.#assets.quote.tokenId, amount }); // fleet will add the tokens from the seller
+        } else {
+          throw Error("Not implemented");
+        }
+
+        output.setAdditionalRegisters({ R7: SColl(SByte, box.boxId) }); // bind the output to the input
+      }
+
+      const outputsLength = addOutputs(output);
+
+      // bind input to the recreated output
+      addInputs(input.setContextExtension({ 0: SInt(outputsLength - 1) }));
+
+      if (handler) handler(output, input);
+    };
   }
 
   close(): FleetPlugin {

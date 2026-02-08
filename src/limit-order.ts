@@ -105,7 +105,7 @@ export class LimitOrder implements BuySellOrder {
 
   buy(amount: bigint, handler?: ActionHandler): FleetPlugin {
     // TODO: add amounts validation
-    if (this.#type !== "buy") throw Error("Cannot buy from a sell order");
+    if (this.#type !== "buy") throw Error("Buy action is not allowed in this contract");
     if (amount <= 0n) throw Error("Amount must be greater than zero");
 
     return ({ addInputs, addOutputs }) => {
@@ -159,7 +159,7 @@ export class LimitOrder implements BuySellOrder {
 
   sell(amount: bigint, handler?: ActionHandler): FleetPlugin {
     // TODO: add amounts validation
-    if (this.#type !== "sell") throw Error("Cannot sell to a buy order");
+    if (this.#type !== "sell") throw Error("Sell action is not allowed in this contract");
     if (amount <= 0n) throw Error("Amount must be greater than zero");
 
     return ({ addInputs, addOutputs }) => {

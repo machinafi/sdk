@@ -274,7 +274,6 @@ describe("Limit order | erg <-> token", () => {
     chain.addParty(bob);
 
     const SELL_AMOUNT = 999n; // selling enough tokens to nearly deplete ERG in the contract
-    const PAY_AMOUNT = SELL_AMOUNT * price; // 999 * 10 = 9990 nanoergs
 
     const transaction = new TransactionBuilder(chain.height)
       .extend(order.sell(SELL_AMOUNT, (output) => output.setValue(output.value - 1n))) // trying to steal 1 nanoerg from the contract by underpaying

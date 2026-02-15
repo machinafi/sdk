@@ -42,7 +42,7 @@
     val selfTokenAmount = selfToken._2;
     val childTokenAmount = childToken._2;
 
-    val isPartial = if (isBuyAction) { childTokenAmount > 0L } else { SELF.value >= SAFE_MIN_BOX_VALUE };
+    val isPartial = if (isBuyAction) { childTokenAmount > 0L } else { childBox.value >= SAFE_MIN_BOX_VALUE };
     val validRecreation = if (isPartial) {
       // =============================== //
       // Partially filling               //

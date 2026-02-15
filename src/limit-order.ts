@@ -30,7 +30,10 @@ const CONTRACTS = {
     "1a9c02080e20cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e05000400040005000580897a05000500d806d601e30004d6027300d603860272027301d604e4c6a70601d605e4c6a70408d606e4c6a7050595e67201d804d607b2a5e4720100d608b2db630872077302017203d6098c720802d60a8cb2db6308a7730301720302d1ed95957204917209730492c1a77305ededededed93c27207c2a7938c720801720293e4c672070408720593e4c672070505720693e4c672070601720493e4c67207070ec5a7ed93c27207d0720593e4c67207040ec5a7957204d801d60b99c17207c1a7ed91720b730692720b9c99720a72097206d801d60b997209720aed91720b7307929c720b720699c1a7c172077205",
     "E2T",
   ),
-  T2T: new OrderContract("0000", "T2T"),
+  T2T: new OrderContract(
+    "1ad1020a0e20cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e050004020400040004020500050205000500d806d601e30004d6027300d603860272027301d604e4c6a70601d605e4c6a70408d606e4c6a7050595e67201d80ad607b2a5e4720100d608db63087207d609b272087302017203d60a8c720902d60bdb6308a7d60cb2720b730300d60d8c720c02d60eb27208730400d60f8c720e02d6108cb2720b730501720302d1ed9595720491720a730691720d7307ededededededed93c27207c2a793c17207c1a7938c720c018c720e01938c720901720293e4c672070408720593e4c672070505720693e4c672070601720493e4c67207070ec5a7ed93c27207d0720593e4c67207040ec5a7957204d801d61199720f720ded91721173089272119c997210720a7206d801d61199720a7210ed9172117309929c7211720699720d720f7205",
+    "T2T",
+  ),
 };
 
 export type LimitOrderType = "buy" | "sell";
@@ -129,7 +132,12 @@ export class LimitOrder implements BuySellOrder {
             R4: SColl(SByte, box.boxId),
           });
         } else {
-          throw Error("Not implemented");
+          output = new OutputBuilder(box.value, ownerAddress)
+            .addTokens({
+              tokenId: this.#assets.base.tokenId,
+              amount: this.#assets.base.amount + requiredBase,
+            })
+            .setAdditionalRegisters({ R4: SColl(SByte, box.boxId) });
         }
       } else {
         output = OutputBuilder.from(box);
@@ -139,10 +147,9 @@ export class LimitOrder implements BuySellOrder {
             .setValue(newOutputValue)
             .addTokens({ tokenId: this.#assets.quote.tokenId, amount: amount * -1n }); // fleet will deduct the amount from the existing tokens
         } else {
-          throw Error("Not implemented");
-          // output
-          //   .addTokens({ tokenId: this.#assets.base.tokenId, amount: requiredBase }) // fleet will sum the amount to the existing tokens
-          //   .addTokens({ tokenId: this.#assets.quote.tokenId, amount: amount * -1n }); // fleet will sum the amount to the existing tokens
+          output
+            .addTokens({ tokenId: this.#assets.base.tokenId, amount: requiredBase }) // fleet will sum the amount to the existing tokens
+            .addTokens({ tokenId: this.#assets.quote.tokenId, amount: amount * -1n }); // fleet will deduct the amount from the existing tokens
         }
 
         output.setAdditionalRegisters({ R7: SColl(SByte, box.boxId) }); // bind the output to the input
@@ -169,9 +176,11 @@ export class LimitOrder implements BuySellOrder {
       const input = new ErgoUnsignedInput(box);
       let output: OutputBuilder;
 
-      const fulfilling = SAFE_MIN_BOX_VALUE >= this.#assets.base.amount - basePayout;
+      const fulfilling =
+        this.#contract.type === "E2T"
+          ? this.#box.value < SAFE_MIN_BOX_VALUE
+          : this.#assets.base.amount <= 1n;
       if (fulfilling) {
-        console.log("Fulfilling the entire order, returning the collateral to the seller");
         // TODO: here we are considering R4 is a public key, but it's not always the case, let's handle SigmaProp properly
         const owner = SConstant.from<Uint8Array>(box.additionalRegisters.R4);
         if (owner.type.toString() !== "SSigmaProp") throw Error("Invalid owner register");
@@ -184,7 +193,14 @@ export class LimitOrder implements BuySellOrder {
             .addTokens({ tokenId: this.#assets.quote.tokenId, amount })
             .setAdditionalRegisters({ R4: SColl(SByte, box.boxId) });
         } else {
-          throw Error("Not implemented");
+          output = new OutputBuilder(box.value, ownerAddress)
+            .addTokens({
+              tokenId: this.#assets.base.tokenId,
+              amount: this.#assets.base.amount - basePayout,
+            })
+            .addTokens(this.#assets.quote)
+            .addTokens({ tokenId: this.#assets.quote.tokenId, amount })
+            .setAdditionalRegisters({ R4: SColl(SByte, box.boxId) });
         }
       } else {
         output = OutputBuilder.from(box);
@@ -194,7 +210,9 @@ export class LimitOrder implements BuySellOrder {
             .setValue(box.value - basePayout)
             .addTokens({ tokenId: this.#assets.quote.tokenId, amount }); // fleet will add the tokens from the seller
         } else {
-          throw Error("Not implemented");
+          output
+            .addTokens({ tokenId: this.#assets.base.tokenId, amount: basePayout * -1n }) // fleet will deduct the amount from the existing tokens
+            .addTokens({ tokenId: this.#assets.quote.tokenId, amount }); // fleet will add the tokens from the seller
         }
 
         output.setAdditionalRegisters({ R7: SColl(SByte, box.boxId) }); // bind the output to the input

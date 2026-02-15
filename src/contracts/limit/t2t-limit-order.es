@@ -49,7 +49,7 @@
     val childBaseAmount = childBaseToken._2;
     val childQuoteAmount = childQuoteToken._2;
 
-    val isPartial = if (isBuyAction) { childQuoteAmount > 0L } else { selfBaseAmount > 1L };
+    val isPartial = if (isBuyAction) { childQuoteAmount > 0L } else { childBaseAmount > 1L };
     val validRecreation = if (isPartial) {
       // =============================== //
       // Partially filling               //

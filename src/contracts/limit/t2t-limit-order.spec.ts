@@ -249,7 +249,7 @@ describe("Limit order | token <-> token", () => {
     expect(success).toBe(true);
 
     // order box must be destroyed
-    // expect(contract.utxos.length).toBe(0);
+    expect(contract.utxos.length).toBe(0);
     expect(contract.balance).toStrictEqual({
       nanoergs: 0n,
       tokens: [],
@@ -257,15 +257,14 @@ describe("Limit order | token <-> token", () => {
 
     expect(alice.utxos.length).toBe(1);
     expect(alice.balance).toStrictEqual({
-      nanoergs: ONE_ERG + PAY_AMOUNT,
-      tokens: [sigusd(1n)], // alice has 1 token left after selling 999
+      nanoergs: ONE_ERG,
+      tokens: [sigusd(9n), rsn(991n)], // alice received 9 SigUSD, has 991 RSN left
     });
 
     // funds must be sent to the owner
     expect(bob.utxos.length).toBe(1);
-    expect(bob.balance).toStrictEqual({
-      nanoergs: 10n, // minimal ERG left (10000 - 9990)
-      tokens: [sigusd(SELL_AMOUNT)], // bob gets the 1000 tokens
+    expect(bob.balance).toMatchObject({
+      tokens: [sigusd(1n), rsn(9n)], // bob receives the 9 RSN sold by Alice, plus the 1 RSN that remained in the contract, and has no SigUSD left
     });
   });
 

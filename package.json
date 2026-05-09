@@ -1,15 +1,22 @@
 {
-  "name": "@machinafi/sdk",
+  "name": "@machina-finance/sdk",
+  "version": "0.1.0-alpha.0",
   "private": false,
-  "homepage": "https://github.com/machinafi/sdk#readme",
+  "homepage": "https://github.com/machina-finance/sdk#readme",
   "bugs": {
-    "url": "https://github.com/machinafi/sdk/issues"
+    "url": "https://github.com/machina-finance/sdk/issues"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/machinafi/sdk.git"
+    "url": "git+https://github.com/machina-finance/sdk.git"
   },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",

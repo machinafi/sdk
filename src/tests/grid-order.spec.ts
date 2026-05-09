@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import { GridOrder } from "../grid-order";
 import { LimitOrder } from "../limit-order";
-import { SIGUSD_TOKEN_ID, RSN_TOKEN_ID, ONE_ERG } from "./utils";
+import { SIGUSD_TOKEN_ID, RSN_TOKEN_ID, FAKE_TOKEN_ID, ONE_ERG } from "./utils";
 
 const chain = new MockChain();
 const owner = chain.newParty("Owner");
@@ -132,6 +132,46 @@ describe("GridOrder", () => {
       const box = mockUTxO({
         ...candidate,
         assets: [{ tokenId: RSN_TOKEN_ID, amount: 100n }],
+      }) as Box<bigint, R4ToR5Registers>;
+
+      expect(() => new GridOrder(box)).toThrow("Invalid quote token for the contract");
+    });
+
+    it("throws when T2T box has no base token", () => {
+      const candidate = GridOrder.create({
+        owner: owner.address,
+        assets: {
+          base: { tokenId: SIGUSD_TOKEN_ID, amount: 200n },
+          quote: { tokenId: RSN_TOKEN_ID, amount: 100n },
+        },
+        prices: { buy: 5n, sell: 10n },
+      })
+        .setCreationHeight(1)
+        .build();
+
+      const box = mockUTxO({ ...candidate, assets: [] }) as Box<bigint, R4ToR5Registers>;
+
+      expect(() => new GridOrder(box)).toThrow("The base token is not specified in the box");
+    });
+
+    it("throws for an invalid quote token (T2T)", () => {
+      const candidate = GridOrder.create({
+        owner: owner.address,
+        assets: {
+          base: { tokenId: SIGUSD_TOKEN_ID, amount: 200n },
+          quote: { tokenId: RSN_TOKEN_ID, amount: 100n },
+        },
+        prices: { buy: 5n, sell: 10n },
+      })
+        .setCreationHeight(1)
+        .build();
+
+      const box = mockUTxO({
+        ...candidate,
+        assets: [
+          { tokenId: SIGUSD_TOKEN_ID, amount: 200n },
+          { tokenId: FAKE_TOKEN_ID, amount: 100n },
+        ],
       }) as Box<bigint, R4ToR5Registers>;
 
       expect(() => new GridOrder(box)).toThrow("Invalid quote token for the contract");

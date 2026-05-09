@@ -70,6 +70,7 @@ export class GridOrder implements BuySellOrder<PriceRange> {
       if (!validateToken(quoteId, box, 1)) throw Error("Invalid quote token for the contract");
 
       this.#assets = {
+        /* c8 ignore next 2 -- assets[0/1] always exist here: guarded by !baseId and validateToken above */
         base: { tokenId: baseId, amount: this.#box.assets[0]?.amount ?? 0n },
         quote: { tokenId: quoteId, amount: this.#box.assets[1]?.amount ?? 0n },
       };

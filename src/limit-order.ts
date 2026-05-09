@@ -73,7 +73,9 @@ export class LimitOrder implements BuySellOrder {
       if (!validateToken(quoteId, box, 1)) throw Error("Invalid quote token for the contract");
 
       this.#assets = {
+        /* c8 ignore next -- assets[0] always exist here: guarded by !baseId above */
         base: { tokenId: baseId, amount: this.#box.assets[0]?.amount ?? 0n },
+        /* c8 ignore next -- assets[1] always exist here: guarded by validateToken above */
         quote: { tokenId: quoteId, amount: this.#box.assets[1]?.amount ?? 0n },
       };
     }
@@ -128,7 +130,7 @@ export class LimitOrder implements BuySellOrder {
             R4: SColl(SByte, box.boxId),
           });
         } else {
-          throw Error("Not implemented");
+          throw Error("Not supported");
         }
       } else {
         output = OutputBuilder.from(box);
@@ -138,10 +140,7 @@ export class LimitOrder implements BuySellOrder {
             .setValue(newOutputValue)
             .addTokens({ tokenId: this.#assets.quote.tokenId, amount: amount * -1n }); // fleet will deduct the amount from the existing tokens
         } else {
-          throw Error("Not implemented");
-          // output
-          //   .addTokens({ tokenId: this.#assets.base.tokenId, amount: requiredBase }) // fleet will sum the amount to the existing tokens
-          //   .addTokens({ tokenId: this.#assets.quote.tokenId, amount: amount * -1n }); // fleet will sum the amount to the existing tokens
+          throw Error("Not supported");
         }
 
         output.setAdditionalRegisters({ R7: SColl(SByte, box.boxId) }); // bind the output to the input
@@ -181,7 +180,7 @@ export class LimitOrder implements BuySellOrder {
             .addTokens({ tokenId: this.#assets.quote.tokenId, amount })
             .setAdditionalRegisters({ R4: SColl(SByte, box.boxId) });
         } else {
-          throw Error("Not implemented");
+          throw Error("Not supported");
         }
       } else {
         output = OutputBuilder.from(box);
@@ -191,7 +190,7 @@ export class LimitOrder implements BuySellOrder {
             .setValue(box.value - basePayout)
             .addTokens({ tokenId: this.#assets.quote.tokenId, amount }); // fleet will add the tokens from the seller
         } else {
-          throw Error("Not implemented");
+          throw Error("Not supported");
         }
 
         output.setAdditionalRegisters({ R7: SColl(SByte, box.boxId) }); // bind the output to the input

@@ -22,6 +22,7 @@
     "@fleet-sdk/mock-chain": "^0.12.0",
     "@types/node": "latest",
     "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/ui": "^4.1.5",
     "oxfmt": "^0.48.0",
     "oxlint": "^1.63.0",
     "vitest": "^4.1.5"

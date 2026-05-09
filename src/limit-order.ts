@@ -104,9 +104,9 @@ export class LimitOrder implements BuySellOrder {
   }
 
   buy(amount: bigint, handler?: ActionHandler): FleetPlugin {
-    // TODO: add amounts validation
     if (this.#type !== "buy") throw Error("Buy action is not allowed in this contract");
     if (amount <= 0n) throw Error("Amount must be greater than zero");
+    if (amount > this.#assets.quote.amount) throw Error("Amount exceeds the available quote tokens");
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;
@@ -118,7 +118,6 @@ export class LimitOrder implements BuySellOrder {
 
       const fulfilling = amount >= this.#assets.quote.amount;
       if (fulfilling) {
-        // TODO: here we are considering R4 is a public key, but it's not always the case, let's handle SigmaProp properly
         const owner = SConstant.from<Uint8Array>(box.additionalRegisters.R4);
         if (owner.type.toString() !== "SSigmaProp") throw Error("Invalid owner register");
 
@@ -158,9 +157,9 @@ export class LimitOrder implements BuySellOrder {
   }
 
   sell(amount: bigint, handler?: ActionHandler): FleetPlugin {
-    // TODO: add amounts validation
     if (this.#type !== "sell") throw Error("Sell action is not allowed in this contract");
     if (amount <= 0n) throw Error("Amount must be greater than zero");
+    if (amount * this.#price > this.#assets.base.amount) throw Error("Insufficient base amount to cover the payout");
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;
@@ -171,8 +170,6 @@ export class LimitOrder implements BuySellOrder {
 
       const fulfilling = SAFE_MIN_BOX_VALUE >= this.#assets.base.amount - basePayout;
       if (fulfilling) {
-        console.log("Fulfilling the entire order, returning the collateral to the seller");
-        // TODO: here we are considering R4 is a public key, but it's not always the case, let's handle SigmaProp properly
         const owner = SConstant.from<Uint8Array>(box.additionalRegisters.R4);
         if (owner.type.toString() !== "SSigmaProp") throw Error("Invalid owner register");
 

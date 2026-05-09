@@ -5,6 +5,7 @@
   "module": "src/index.ts",
   "scripts": {
     "test:unit": "vitest --run",
+    "test:cov": "vitest run --coverage",
     "watch:unit": "vitest",
     "watch:unit:recompile": "RECOMPILE=true vitest",
     "fmt": "oxfmt",
@@ -12,17 +13,18 @@
   },
   "dependencies": {
     "@fleet-sdk/common": "^0.10.0",
-    "@fleet-sdk/core": "^0.10.0",
-    "@fleet-sdk/crypto": "^0.10.0",
-    "@fleet-sdk/serializer": "^0.10.0"
+    "@fleet-sdk/core": "^0.12.0",
+    "@fleet-sdk/crypto": "^0.11.0",
+    "@fleet-sdk/serializer": "^0.11.0"
   },
   "devDependencies": {
-    "@fleet-sdk/compiler": "^0.10.0",
-    "@fleet-sdk/mock-chain": "^0.10.0",
+    "@fleet-sdk/compiler": "^0.12.0",
+    "@fleet-sdk/mock-chain": "^0.12.0",
     "@types/node": "latest",
-    "oxfmt": "^0.24.0",
-    "oxlint": "^1.39.0",
-    "vitest": "^4.0.17"
+    "@vitest/coverage-v8": "^4.1.5",
+    "oxfmt": "^0.48.0",
+    "oxlint": "^1.63.0",
+    "vitest": "^4.1.5"
   },
   "peerDependencies": {
     "typescript": "^5"

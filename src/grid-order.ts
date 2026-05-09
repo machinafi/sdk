@@ -101,8 +101,8 @@ export class GridOrder implements BuySellOrder<PriceRange> {
    * @param amount - The amount of token units to buy.
    */
   buy(amount: bigint, handler?: ActionHandler): FleetPlugin {
-    // TODO: add amounts validation
     if (amount <= 0n) throw Error("Amount must be greater than zero");
+    if (amount > this.#assets.quote.amount) throw Error("Amount exceeds the available quote tokens");
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;
@@ -141,8 +141,8 @@ export class GridOrder implements BuySellOrder<PriceRange> {
    * @param amount - The amount of token units to sell.
    */
   sell(amount: bigint, handler?: ActionHandler): FleetPlugin {
-    // TODO: add amounts validation
     if (amount <= 0n) throw Error("Amount must be greater than zero");
+    if (amount * this.#price.sell > this.#assets.base.amount) throw Error("Insufficient base amount to cover the payout");
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;

@@ -2,8 +2,6 @@
 
 `@nautls/machinafi-sdk` works as a **Fleet SDK plugin layer** for Machina orders contracts: create order boxes with `GridOrder.create(...)` / `LimitOrder.create(...)`, then compose actions in `TransactionBuilder` with `order.buy(...)`, `order.sell(...)`, and `order.close()`.
 
-## Features
-
 - First-class Fleet SDK integration via `.extend(...)` API
 - Composable order actions: create, fill (buy/sell), and close orders in the same transaction
 - 100% test coverage
@@ -13,6 +11,19 @@
 - Grid T2T (token <-> token): [`src/contracts/grid/t2t-grid-order.es`](src/contracts/grid/t2t-grid-order.es)
 - Grid E2T (ergo <-> token): [`src/contracts/grid/e2t-grid-order.es`](src/contracts/grid/e2t-grid-order.es)
 - Limit E2T (ergo <-> token): [`src/contracts/limit/e2t-limit-order.es`](src/contracts/limit/e2t-limit-order.es)
+
+## Installation
+
+```bash
+# npm
+npm install @nautls/machinafi-sdk@0.1.0-alpha.0
+
+# yarn
+yarn add @nautls/machinafi-sdk@0.1.0-alpha.0
+
+# pnpm
+pnpm add @nautls/machinafi-sdk@0.1.0-alpha.0
+```
 
 ## Grid orders operations
 

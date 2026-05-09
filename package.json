@@ -1,9 +1,25 @@
 {
-  "name": "gridz",
-  "private": true,
+  "name": "@machinafi/sdk",
+  "private": false,
   "type": "module",
-  "module": "src/index.ts",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/machinafi/sdk#readme",
+  "bugs": {
+    "url": "https://github.com/machinafi/sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/machinafi/sdk.git"
+  },
   "scripts": {
+    "build": "tsdown",
     "test:unit": "vitest --run",
     "test:cov": "vitest run --coverage",
     "watch:unit": "vitest",
@@ -24,6 +40,7 @@
     "@vitest/coverage-v8": "^4.1.5",
     "oxfmt": "^0.48.0",
     "oxlint": "^1.63.0",
+    "tsdown": "^0.22.0",
     "vitest": "^4.1.5"
   },
   "peerDependencies": {

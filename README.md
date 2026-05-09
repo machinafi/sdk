@@ -81,6 +81,9 @@ const tx = new TransactionBuilder(height)
 
 ## Limit orders operations
 
+> [!WARNING]
+> Only E2T (ergo <-> token) limit orders are currently supported. T2T (token <-> token) is not yet implemented and will throw at runtime.
+
 ### 1. Creating an order
 
 ```ts

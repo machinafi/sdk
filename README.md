@@ -16,13 +16,13 @@
 
 ```bash
 # npm
-npm install @nautls/machinafi-sdk@0.1.0-alpha.0
+npm install @nautls/machinafi-sdk
 
 # yarn
-yarn add @nautls/machinafi-sdk@0.1.0-alpha.0
+yarn add @nautls/machinafi-sdk
 
 # pnpm
-pnpm add @nautls/machinafi-sdk@0.1.0-alpha.0
+pnpm add @nautls/machinafi-sdk
 ```
 
 ## Grid orders operations

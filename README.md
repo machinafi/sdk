@@ -1,6 +1,6 @@
-# @machina-finance/sdk
+# @nautls/machinafi-sdk
 
-`@machina-finance/sdk` works as a **Fleet SDK plugin layer** for Machina orders contracts: create order boxes with `GridOrder.create(...)` / `LimitOrder.create(...)`, then compose actions in `TransactionBuilder` with `order.buy(...)`, `order.sell(...)`, and `order.close()`.
+`@nautls/machinafi-sdk` works as a **Fleet SDK plugin layer** for Machina orders contracts: create order boxes with `GridOrder.create(...)` / `LimitOrder.create(...)`, then compose actions in `TransactionBuilder` with `order.buy(...)`, `order.sell(...)`, and `order.close()`.
 
 ## Features
 

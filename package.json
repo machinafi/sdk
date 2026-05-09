@@ -1,6 +1,15 @@
 {
   "name": "@machinafi/sdk",
   "private": false,
+  "homepage": "https://github.com/machinafi/sdk#readme",
+  "bugs": {
+    "url": "https://github.com/machinafi/sdk/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/machinafi/sdk.git"
+  },
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -8,15 +17,6 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "license": "MIT",
-  "homepage": "https://github.com/machinafi/sdk#readme",
-  "bugs": {
-    "url": "https://github.com/machinafi/sdk/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/machinafi/sdk.git"
   },
   "scripts": {
     "build": "tsdown",

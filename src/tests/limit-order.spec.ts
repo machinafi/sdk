@@ -1,9 +1,8 @@
 import type { Box } from "@fleet-sdk/common";
 import { first } from "@fleet-sdk/common";
-
 import { OutputBuilder, SAFE_MIN_BOX_VALUE, type R4ToR6Registers } from "@fleet-sdk/core";
-import { SBool, SGroupElement, SInt, SLong, SSigmaProp } from "@fleet-sdk/serializer";
 import { MockChain, mockUTxO } from "@fleet-sdk/mock-chain";
+import { SBool, SGroupElement, SInt, SLong, SSigmaProp } from "@fleet-sdk/serializer";
 import { describe, expect, it } from "vitest";
 
 import { GridOrder } from "../grid-order";

@@ -1,14 +1,12 @@
 import type { Box, TokenAmount } from "@fleet-sdk/common";
-
 import { compile } from "@fleet-sdk/compiler";
 import { type R4ToR5Registers, type R4ToR6Registers, SAFE_MIN_BOX_VALUE } from "@fleet-sdk/core";
 import { type KeyedMockChainParty, mockUTxO } from "@fleet-sdk/mock-chain";
 
-import type { PriceRange } from "../types";
-
 import { GridOrder } from "../grid-order";
 import { LimitOrder, type LimitOrderType } from "../limit-order";
 import { OrderContract, QUOTE_TOKEN_ID_PLACEHOLDER } from "../order-contract";
+import type { PriceRange } from "../types";
 
 type Token = TokenAmount<bigint>;
 

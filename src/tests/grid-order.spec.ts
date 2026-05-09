@@ -1,9 +1,8 @@
 import type { Box } from "@fleet-sdk/common";
 import { first } from "@fleet-sdk/common";
-
 import { OutputBuilder, SAFE_MIN_BOX_VALUE, type R4ToR5Registers } from "@fleet-sdk/core";
-import { SGroupElement, SLong, SSigmaProp } from "@fleet-sdk/serializer";
 import { MockChain, mockUTxO } from "@fleet-sdk/mock-chain";
+import { SGroupElement, SLong, SSigmaProp } from "@fleet-sdk/serializer";
 import { describe, expect, it } from "vitest";
 
 import { GridOrder } from "../grid-order";
@@ -13,7 +12,11 @@ import { SIGUSD_TOKEN_ID, RSN_TOKEN_ID, FAKE_TOKEN_ID, ONE_ERG } from "./utils";
 const chain = new MockChain();
 const owner = chain.newParty("Owner");
 
-function makeE2TOrder(baseAmount: bigint, quoteAmount: bigint, prices = { buy: 5n, sell: 10n }): GridOrder {
+function makeE2TOrder(
+  baseAmount: bigint,
+  quoteAmount: bigint,
+  prices = { buy: 5n, sell: 10n },
+): GridOrder {
   const candidate = GridOrder.create({
     owner: owner.address,
     assets: {
@@ -28,7 +31,11 @@ function makeE2TOrder(baseAmount: bigint, quoteAmount: bigint, prices = { buy: 5
   return new GridOrder(mockUTxO(candidate) as Box<bigint, R4ToR5Registers>);
 }
 
-function makeT2TOrder(baseAmount: bigint, quoteAmount: bigint, prices = { buy: 5n, sell: 10n }): GridOrder {
+function makeT2TOrder(
+  baseAmount: bigint,
+  quoteAmount: bigint,
+  prices = { buy: 5n, sell: 10n },
+): GridOrder {
   const candidate = GridOrder.create({
     owner: owner.address,
     assets: {

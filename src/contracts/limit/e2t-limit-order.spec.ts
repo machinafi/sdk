@@ -1,5 +1,4 @@
 import type { Amount, Box } from "@fleet-sdk/common";
-
 import {
   SGroupElement,
   SInt,

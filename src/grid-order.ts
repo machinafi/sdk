@@ -24,10 +24,9 @@ import {
   SSigmaProp,
 } from "@fleet-sdk/serializer";
 
-import type { ActionHandler, BuySellOrder, ExchangeableAssets, PriceRange } from "./types";
-
 import { OrderContract } from "./order-contract";
 import { validateToken } from "./tokens";
+import type { ActionHandler, BuySellOrder, ExchangeableAssets, PriceRange } from "./types";
 
 const CONTRACTS = {
   E2T: new OrderContract(
@@ -103,7 +102,8 @@ export class GridOrder implements BuySellOrder<PriceRange> {
    */
   buy(amount: bigint, handler?: ActionHandler): FleetPlugin {
     if (amount <= 0n) throw Error("Amount must be greater than zero");
-    if (amount > this.#assets.quote.amount) throw Error("Amount exceeds the available quote tokens");
+    if (amount > this.#assets.quote.amount)
+      throw Error("Amount exceeds the available quote tokens");
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;
@@ -143,7 +143,8 @@ export class GridOrder implements BuySellOrder<PriceRange> {
    */
   sell(amount: bigint, handler?: ActionHandler): FleetPlugin {
     if (amount <= 0n) throw Error("Amount must be greater than zero");
-    if (amount * this.#price.sell > this.#assets.base.amount) throw Error("Insufficient base amount to cover the payout");
+    if (amount * this.#price.sell > this.#assets.base.amount)
+      throw Error("Insufficient base amount to cover the payout");
 
     return ({ addInputs, addOutputs }) => {
       const box = this.#box;

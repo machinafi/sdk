@@ -2,6 +2,7 @@
 
 `@nautls/machinafi-sdk` works as a **Fleet SDK plugin layer** for Machina orders contracts: create order boxes with `GridOrder.create(...)` / `LimitOrder.create(...)`, then compose actions in `TransactionBuilder` with `order.buy(...)`, `order.sell(...)`, and `order.close()`.
 
+- Contracts audited by [4EYES Labs](https://github.com/4EYESConsulting/audits/blob/main/machina_finance/4eyes_audit_machina_finance_grid_trading.pdf)
 - First-class Fleet SDK integration via `.extend(...)` API
 - Composable order actions: create, fill (buy/sell), and close orders in the same transaction
 - 100% test coverage
@@ -31,7 +32,7 @@ pnpm add @nautls/machinafi-sdk
 
 ```ts
 import { TransactionBuilder } from "@fleet-sdk/core";
-import { GridOrder } from "@machinafi/sdk";
+import { GridOrder } from "@nautls/machinafi-sdk";
 
 const tx = new TransactionBuilder(height)
   .from(ownerInputs) // spend owner boxes to fund the new order
@@ -99,7 +100,7 @@ const tx = new TransactionBuilder(height)
 
 ```ts
 import { TransactionBuilder } from "@fleet-sdk/core";
-import { LimitOrder } from "@machinafi/sdk";
+import { LimitOrder } from "@nautls/machinafi-sdk";
 
 const buyOrderTx = new TransactionBuilder(height)
   .from(ownerInputs) // owner funds the order box

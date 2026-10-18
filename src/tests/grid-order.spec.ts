@@ -161,6 +161,27 @@ describe("GridOrder", () => {
       expect(() => new GridOrder(box)).toThrow("The base token is not specified in the box");
     });
 
+    it("throws when T2T box holds only the quote token", () => {
+      const candidate = GridOrder.create({
+        owner: owner.address,
+        assets: {
+          base: { tokenId: SIGUSD_TOKEN_ID, amount: 200n },
+          quote: { tokenId: RSN_TOKEN_ID, amount: 100n },
+        },
+        prices: { bid: 5n, ask: 10n },
+      })
+        .setCreationHeight(1)
+        .build();
+
+      // the quote token sits at the base index, so base and quote resolve to the same token
+      const box = mockUTxO({
+        ...candidate,
+        assets: [{ tokenId: RSN_TOKEN_ID, amount: 100n }],
+      }) as Box<bigint, R4ToR5Registers>;
+
+      expect(() => new GridOrder(box)).toThrow("Base and quote tokens must be different");
+    });
+
     it("throws for an invalid quote token (T2T)", () => {
       const candidate = GridOrder.create({
         owner: owner.address,
@@ -283,6 +304,33 @@ describe("GridOrder", () => {
           prices: { bid: 5n, ask: 10n },
         }),
       ).toThrow("Quote asset cannot be ERG");
+    });
+
+    it("throws when base and quote assets are the same token", () => {
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        }),
+      ).toThrow("Base and quote assets must be different");
+    });
+
+    it("throws when T2T base amount is zero", () => {
+      // without a base token at index 0, the quote token would take its place
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: SIGUSD_TOKEN_ID, amount: 0n },
+            quote: { tokenId: RSN_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        }),
+      ).toThrow("Base amount must be specified for T2T orders");
     });
 
     it("throws when neither base nor quote amount is specified", () => {

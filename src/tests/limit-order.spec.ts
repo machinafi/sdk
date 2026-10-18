@@ -517,6 +517,20 @@ describe("LimitOrder", () => {
       ).toThrow("Quote asset cannot be ERG");
     });
 
+    it("throws when base and quote assets are the same token", () => {
+      expect(() =>
+        LimitOrder.create({
+          owner: owner.address,
+          type: "buy",
+          assets: {
+            base: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          price: 5n,
+        }),
+      ).toThrow("Base and quote assets must be different");
+    });
+
     it("throws when price is zero", () => {
       expect(() =>
         LimitOrder.create({

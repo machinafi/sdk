@@ -308,7 +308,7 @@ describe("GridOrder", () => {
           },
           prices: { bid: 5n, ask: 0n },
         }),
-      ).toThrow("Prices must be specified for both bid and ask");
+      ).toThrow("Bid and ask prices must be greater than zero");
     });
 
     it("throws when bid price is zero", () => {
@@ -321,7 +321,34 @@ describe("GridOrder", () => {
           },
           prices: { bid: 0n, ask: 5n },
         }),
-      ).toThrow("Prices must be specified for both bid and ask");
+      ).toThrow("Bid and ask prices must be greater than zero");
+    });
+
+    it("throws when ask price is negative", () => {
+      // a negative ask would let takers buy all quote tokens for a single nanoerg
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: ONE_ERG },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: -10n, ask: -5n },
+        }),
+      ).toThrow("Bid and ask prices must be greater than zero");
+    });
+
+    it("throws when bid price is negative", () => {
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: ONE_ERG },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: -5n, ask: 10n },
+        }),
+      ).toThrow("Bid and ask prices must be greater than zero");
     });
 
     it("throws when bid price is higher than ask price", () => {

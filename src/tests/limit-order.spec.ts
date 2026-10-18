@@ -528,7 +528,22 @@ describe("LimitOrder", () => {
           },
           price: 0n,
         }),
-      ).toThrow("Quote token price must be specified");
+      ).toThrow("Quote token price must be greater than zero");
+    });
+
+    it("throws when price is negative", () => {
+      // a negative price would let takers buy all quote tokens for a single nanoerg
+      expect(() =>
+        LimitOrder.create({
+          owner: owner.address,
+          type: "buy",
+          assets: {
+            base: { tokenId: "ERG", amount: 0n },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          price: -5n,
+        }),
+      ).toThrow("Quote token price must be greater than zero");
     });
 
     it("throws for a buy order without quote amount", () => {

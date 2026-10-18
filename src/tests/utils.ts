@@ -6,14 +6,14 @@ import { type KeyedMockChainParty, mockUTxO } from "@fleet-sdk/mock-chain";
 import { GridOrder } from "../grid-order";
 import { LimitOrder, type LimitOrderType } from "../limit-order";
 import { OrderContract, QUOTE_TOKEN_ID_PLACEHOLDER } from "../order-contract";
-import type { PriceRange } from "../types";
+import type { BidAskPrices } from "../types";
 
 type Token = TokenAmount<bigint>;
 
 interface GridOrderParams {
   owner: KeyedMockChainParty;
   assets?: { base?: bigint; quote?: bigint };
-  prices?: PriceRange;
+  prices?: BidAskPrices;
 }
 
 interface LimitOrderParams {
@@ -60,7 +60,7 @@ export function createGridOrderMocker(script: string, baseId: string, quoteId: s
             base: { tokenId: baseId, amount: p.assets?.base ?? 0n },
             quote: { tokenId: quoteId, amount: p.assets?.quote ?? 0n },
           },
-      prices: p.prices ?? { buy: 1n, sell: 1n },
+      prices: p.prices ?? { bid: 1n, ask: 1n },
       owner: p.owner.address,
     })
       .setCreationHeight(1)

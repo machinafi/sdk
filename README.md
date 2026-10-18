@@ -46,7 +46,7 @@ const tx = new TransactionBuilder(height)
           amount: 100n,
         },
       },
-      prices: { buy: 10n, sell: 5n }, // takers pay 10n ERG/token to buy, receive 5n ERG/token when selling
+      prices: { bid: 5n, ask: 10n }, // owner buys at 5n and sells at 10n nanoERG/token, so takers buy at the ask and sell at the bid
     }),
   )
   .sendChangeTo(ownerAddress) // return leftovers to owner

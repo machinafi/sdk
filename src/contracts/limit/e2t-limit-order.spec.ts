@@ -460,6 +460,62 @@ describe("Limit order | erg <-> token", () => {
     expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
   });
 
+  it("Should not allow fully filling a sell order when the Token ID is swapped", () => {
+    // arrange
+    const price = 10n;
+    const order = mockLimitOrder("sell", { owner: bob, assets: { base: ONE_ERG }, price });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [fakeToken(1_000_000_000n)] }); // no sigusd at all
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        // attempt to fully fill the order but maliciously pay with fake tokens
+        order.sell(ONE_ERG / price - 100n, (output) =>
+          output.eject((x) => {
+            x.tokens.at(0).tokenId = FAKE_TOKEN_ID;
+            x.tokens.at(0).amount = 1_000_000_000n;
+          }),
+        ),
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should not allow fully filling a partially filled sell order when the Token ID is swapped", () => {
+    // arrange
+    const price = 10n;
+    const order = mockLimitOrder("sell", {
+      owner: bob,
+      assets: { base: ONE_ERG, quote: 500n }, // already holds collected quote tokens
+      price,
+    });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [fakeToken(1_000_000_000n)] }); // no sigusd at all
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        // attempt to fully fill the order with fake tokens, stealing the collected quote tokens
+        order.sell(ONE_ERG / price - 100n, (output) =>
+          output.eject((x) => {
+            x.tokens.at(0).tokenId = FAKE_TOKEN_ID;
+            x.tokens.at(0).amount = 1_000_000_000n;
+          }),
+        ),
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
   it("Should not allow changing the owner of the order", () => {
     // arrange
     const price = 5n;

@@ -62,7 +62,8 @@
       // =============================== //
                                                             // should be true if:
       childBox.propositionBytes == owner.propBytes &&       // 1. funds are sent to the owner
-      childBox.R4[Coll[Byte]].get == SELF.id                // 2. bind the child to the parent box
+      childToken._1 == TOKEN_ID &&                          // 2. preserve token ID, if any
+      childBox.R4[Coll[Byte]].get == SELF.id                // 3. bind the child to the parent box
     }
 
     val validExchange = if (isBuyAction) {

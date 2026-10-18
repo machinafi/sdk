@@ -28,13 +28,13 @@
   val SAFE_MIN_BOX_VALUE = 1000000L;
 
   val owner = SELF.R4[SigmaProp].get;
-  val price = SELF.R5[Long].get;          // price in nanoergs
-  val isBuyAction = SELF.R6[Boolean].get; // true if this is a buy order, false if sell order
 
   val childBoxIndex = getVar[Int](0);
   val isTrading = childBoxIndex.isDefined;
 
   if (isTrading) {
+    val price = SELF.R5[Long].get;          // price in nanoergs
+    val isBuyAction = SELF.R6[Boolean].get; // true if this is a buy order, false if sell order
     val childBox = OUTPUTS(childBoxIndex.get);
 
     val selfToken = SELF.tokens.getOrElse(T, EMPTY_TOKEN);

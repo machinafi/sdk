@@ -1,5 +1,6 @@
 import type { Amount, Box } from "@fleet-sdk/common";
 import {
+  OutputBuilder,
   SGroupElement,
   SInt,
   SLong,
@@ -56,6 +57,44 @@ describe("Limit order | erg <-> token", () => {
     expect(success).toBe(true);
     expect(bob.balance).toEqual({ nanoergs: ONE_ERG, tokens: [sigusd(100n)] });
     expect(contract.balance).toEqual({ nanoergs: 0n, tokens: [] });
+  });
+
+  it("Should allow the owner to close a malformed order without R5", () => {
+    // arrange
+    const order = mockLimitOrder("buy", { owner: bob, assets: { base: ONE_ERG, quote: 100n } });
+    bob.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n)] });
+    chain.addParty(bob);
+    chain.addParty(contract);
+
+    const creationTx = new TransactionBuilder(chain.height)
+      .from(bob.utxos)
+      .to(OutputBuilder.from(order.box))
+      .eject(({ outputs }) => {
+        // registers must be densely packed, so dropping R5 also drops R6
+        const registers = outputs.at(0).additionalRegisters;
+        delete registers.R5;
+        delete registers.R6;
+      })
+      .build();
+
+    expect(chain.execute(creationTx, { signers: [bob] })).toBe(true);
+    expect(contract.utxos.length).toBe(1);
+
+    const malformedBox = contract.utxos.at(0);
+    expect(malformedBox.additionalRegisters.R5).toBeUndefined();
+
+    const closeTx = new TransactionBuilder(chain.height)
+      .extend(({ addInputs }) => addInputs(malformedBox)) // close the order
+      .sendChangeTo(bob.address)
+      .build();
+
+    // act
+    const success = chain.execute(closeTx, { signers: [bob] });
+
+    // assert
+    expect(success).toBe(true);
+    expect(contract.utxos.length).toBe(0);
+    expect(bob.balance).toEqual({ nanoergs: ONE_ERG, tokens: [sigusd(100n)] });
   });
 
   it("Should partially buy tokens", () => {

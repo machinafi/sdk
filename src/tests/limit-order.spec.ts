@@ -531,6 +531,34 @@ describe("LimitOrder", () => {
       ).toThrow("Base and quote assets must be different");
     });
 
+    it("throws when base amount is negative", () => {
+      expect(() =>
+        LimitOrder.create({
+          owner: owner.address,
+          type: "buy",
+          assets: {
+            base: { tokenId: "ERG", amount: -1n },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          price: 5n,
+        }),
+      ).toThrow("Asset amounts cannot be negative");
+    });
+
+    it("throws when quote amount is negative", () => {
+      expect(() =>
+        LimitOrder.create({
+          owner: owner.address,
+          type: "buy",
+          assets: {
+            base: { tokenId: "ERG", amount: 1_000_000_000n },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: -100n },
+          },
+          price: 5n,
+        }),
+      ).toThrow("Asset amounts cannot be negative");
+    });
+
     it("throws when price is zero", () => {
       expect(() =>
         LimitOrder.create({

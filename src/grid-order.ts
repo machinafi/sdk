@@ -194,6 +194,8 @@ export class GridOrder implements BuySellOrder<PriceRange> {
     if (assets.quote.tokenId === "ERG") throw Error("Quote asset cannot be ERG");
     if (assets.base.tokenId === assets.quote.tokenId)
       throw Error("Base and quote assets must be different");
+    if (assets.base.amount < 0n || assets.quote.amount < 0n)
+      throw Error("Asset amounts cannot be negative");
     if (!assets?.base.amount && !assets?.quote.amount)
       throw Error("At least one of base or quote assets must be specified");
     if (options.prices.bid <= 0n || options.prices.ask <= 0n)

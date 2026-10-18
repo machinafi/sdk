@@ -331,6 +331,32 @@ describe("GridOrder", () => {
       ).toThrow("Base and quote assets must be different");
     });
 
+    it("throws when base amount is negative", () => {
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: -1n },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        }),
+      ).toThrow("Asset amounts cannot be negative");
+    });
+
+    it("throws when quote amount is negative", () => {
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: 1_000_000_000n },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: -100n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        }),
+      ).toThrow("Asset amounts cannot be negative");
+    });
+
     it("throws for a malformed quote token ID", () => {
       // with no quote tokens in the box, nothing else would reject the corrupted, unspendable tree
       expect(() =>

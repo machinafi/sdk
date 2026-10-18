@@ -2,6 +2,7 @@ import { ErgoTree } from "@fleet-sdk/core";
 import { hex } from "@fleet-sdk/crypto";
 
 const ID_LENGTH = 64;
+const TOKEN_ID_PATTERN = /^[0-9a-f]{64}$/i;
 export const QUOTE_TOKEN_ID_PLACEHOLDER =
   "cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e" as const;
 
@@ -30,6 +31,7 @@ export class OrderContract {
   }
 
   new(quoteTokenId: string): string {
+    if (!TOKEN_ID_PATTERN.test(quoteTokenId)) throw Error("Invalid quote token ID");
     return this.proposition.replace(this.#quotePlaceholder.id, quoteTokenId);
   }
 
@@ -39,6 +41,12 @@ export class OrderContract {
   }
 
   validate(proposition: string): boolean {
-    return proposition?.length === this.proposition.length && proposition.endsWith(this.template);
+    if (proposition?.length !== this.proposition.length) return false;
+
+    // without a quote placeholder, there's nothing to substitute: the tree must match exactly
+    if (this.#quotePlaceholder.index === -1) return proposition === this.proposition;
+
+    const quoteId = this.getQuoteId(proposition);
+    return TOKEN_ID_PATTERN.test(quoteId) && proposition === this.new(quoteId);
   }
 }

@@ -161,6 +161,27 @@ describe("GridOrder", () => {
       expect(() => new GridOrder(box)).toThrow("The base token is not specified in the box");
     });
 
+    it("throws when T2T box holds only the quote token", () => {
+      const candidate = GridOrder.create({
+        owner: owner.address,
+        assets: {
+          base: { tokenId: SIGUSD_TOKEN_ID, amount: 200n },
+          quote: { tokenId: RSN_TOKEN_ID, amount: 100n },
+        },
+        prices: { bid: 5n, ask: 10n },
+      })
+        .setCreationHeight(1)
+        .build();
+
+      // the quote token sits at the base index, so base and quote resolve to the same token
+      const box = mockUTxO({
+        ...candidate,
+        assets: [{ tokenId: RSN_TOKEN_ID, amount: 100n }],
+      }) as Box<bigint, R4ToR5Registers>;
+
+      expect(() => new GridOrder(box)).toThrow("Base and quote tokens must be different");
+    });
+
     it("throws for an invalid quote token (T2T)", () => {
       const candidate = GridOrder.create({
         owner: owner.address,
@@ -271,6 +292,18 @@ describe("GridOrder", () => {
     });
   });
 
+  it("rejects a box whose contract has tampered constants", () => {
+    const box = makeE2TOrder(ONE_ERG, 100n).box;
+    // swap the BUY and SELL price index constants: same length and template, inverted prices
+    const ergoTree = box.ergoTree.replace(
+      "0500040004000500040005000402",
+      "0500040004000500040205000400",
+    );
+
+    expect(ergoTree).not.toBe(box.ergoTree);
+    expect(() => new GridOrder({ ...box, ergoTree })).toThrow("Invalid Grid Order contract");
+  });
+
   describe("create", () => {
     it("throws when quote asset is ERG", () => {
       expect(() =>
@@ -283,6 +316,73 @@ describe("GridOrder", () => {
           prices: { bid: 5n, ask: 10n },
         }),
       ).toThrow("Quote asset cannot be ERG");
+    });
+
+    it("throws when base and quote assets are the same token", () => {
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        }),
+      ).toThrow("Base and quote assets must be different");
+    });
+
+    it("throws when base amount is negative", () => {
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: -1n },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        }),
+      ).toThrow("Asset amounts cannot be negative");
+    });
+
+    it("throws when quote amount is negative", () => {
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: 1_000_000_000n },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: -100n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        }),
+      ).toThrow("Asset amounts cannot be negative");
+    });
+
+    it("throws for a malformed quote token ID", () => {
+      // with no quote tokens in the box, nothing else would reject the corrupted, unspendable tree
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: ONE_ERG },
+            quote: { tokenId: SIGUSD_TOKEN_ID.slice(0, 62), amount: 0n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        }),
+      ).toThrow("Invalid quote token ID");
+    });
+
+    it("throws when T2T base amount is zero", () => {
+      // without a base token at index 0, the quote token would take its place
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: SIGUSD_TOKEN_ID, amount: 0n },
+            quote: { tokenId: RSN_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        }),
+      ).toThrow("Base amount must be specified for T2T orders");
     });
 
     it("throws when neither base nor quote amount is specified", () => {
@@ -308,7 +408,7 @@ describe("GridOrder", () => {
           },
           prices: { bid: 5n, ask: 0n },
         }),
-      ).toThrow("Prices must be specified for both bid and ask");
+      ).toThrow("Bid and ask prices must be greater than zero");
     });
 
     it("throws when bid price is zero", () => {
@@ -321,7 +421,34 @@ describe("GridOrder", () => {
           },
           prices: { bid: 0n, ask: 5n },
         }),
-      ).toThrow("Prices must be specified for both bid and ask");
+      ).toThrow("Bid and ask prices must be greater than zero");
+    });
+
+    it("throws when ask price is negative", () => {
+      // a negative ask would let takers buy all quote tokens for a single nanoerg
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: ONE_ERG },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: -10n, ask: -5n },
+        }),
+      ).toThrow("Bid and ask prices must be greater than zero");
+    });
+
+    it("throws when bid price is negative", () => {
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: ONE_ERG },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: -5n, ask: 10n },
+        }),
+      ).toThrow("Bid and ask prices must be greater than zero");
     });
 
     it("throws when bid price is higher than ask price", () => {

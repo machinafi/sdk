@@ -227,7 +227,11 @@ export class LimitOrder implements BuySellOrder {
     const buy = options.type === "buy";
 
     if (assets.quote.tokenId === "ERG") throw Error("Quote asset cannot be ERG");
-    if (!options.price) throw Error("Quote token price must be specified");
+    if (assets.base.tokenId === assets.quote.tokenId)
+      throw Error("Base and quote assets must be different");
+    if (assets.base.amount < 0n || assets.quote.amount < 0n)
+      throw Error("Asset amounts cannot be negative");
+    if (options.price <= 0n) throw Error("Quote token price must be greater than zero");
     if (buy) {
       if (!assets.quote.amount) throw Error("Quote amount must be specified for buy orders");
     } else {

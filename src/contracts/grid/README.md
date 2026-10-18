@@ -31,11 +31,11 @@ Both contracts share the same logic
 
 ### Registers & Context Variables
 
-| Register         | Purpose                                                                    |
-| ---------------- | -------------------------------------------------------------------------- |
-| `R4: SigmaProp`  | Owner’s `SigmaProp` script (defines who can close/withdraw)                |
-| `R5: Coll[Long]` | `[buy, sell]` prices per token unit, from the taker's side (`buy >= sell`) |
-| `R6: Coll[Byte]` | Spent `Input ID` (prevents spending multiple orders with a single output)  |
+| Register         | Purpose                                                                   |
+| ---------------- | ------------------------------------------------------------------------- |
+| `R4: SigmaProp`  | Owner’s `SigmaProp` script (defines who can close/withdraw)               |
+| `R5: Coll[Long]` | `[buy, sell]` prices per token unit                                       |
+| `R6: Coll[Byte]` | Spent `Input ID` (prevents spending multiple orders with a single output) |
 
 | Context Variable | Purpose                              |
 | ---------------- | ------------------------------------ |

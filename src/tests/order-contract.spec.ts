@@ -22,6 +22,18 @@ describe("OrderContract", () => {
       const result = contract.new(SOME_TOKEN_ID);
       expect(result.length).toBe(E2T_LIMIT_PROPOSITION.length);
     });
+
+    it("throws for a token ID shorter than 64 chars", () => {
+      expect(() => contract.new(SOME_TOKEN_ID.slice(0, 62))).toThrow("Invalid quote token ID");
+    });
+
+    it("throws for a token ID longer than 64 chars", () => {
+      expect(() => contract.new(SOME_TOKEN_ID + "00")).toThrow("Invalid quote token ID");
+    });
+
+    it("throws for a non-hex token ID", () => {
+      expect(() => contract.new("z" + SOME_TOKEN_ID.slice(1))).toThrow("Invalid quote token ID");
+    });
   });
 
   describe("getQuoteId", () => {
@@ -56,6 +68,25 @@ describe("OrderContract", () => {
     it("rejects a proposition of the correct length but wrong template", () => {
       const wrongProposition = "ff".repeat(E2T_LIMIT_PROPOSITION.length / 2);
       expect(contract.validate(wrongProposition)).toBe(false);
+    });
+
+    it("rejects a proposition with a tampered constant", () => {
+      // SAFE_MIN_BOX_VALUE (1_000_000) changed to a same-width value: the template is unchanged
+      const tampered = contract.new(SOME_TOKEN_ID).replace("0580897a", "0580897b");
+      expect(tampered).not.toBe(contract.new(SOME_TOKEN_ID));
+      expect(tampered.endsWith(contract.template)).toBe(true);
+      expect(contract.validate(tampered)).toBe(false);
+    });
+
+    it("rejects a proposition with a malformed token ID", () => {
+      const proposition = E2T_LIMIT_PROPOSITION.replace(QUOTE_TOKEN_ID_PLACEHOLDER, "z".repeat(64));
+      expect(contract.validate(proposition)).toBe(false);
+    });
+
+    it("requires an exact match for a contract without a quote placeholder", () => {
+      const fixed = new OrderContract("0008cd03", "T2T");
+      expect(fixed.validate("0008cd03")).toBe(true);
+      expect(fixed.validate("0008cd04")).toBe(false);
     });
 
     it("rejects a proposition from a different contract", () => {

@@ -72,6 +72,7 @@ export class GridOrder implements BuySellOrder<PriceRange> {
     } else {
       const baseId = this.#box.assets[0]?.tokenId;
       if (!baseId) throw Error("The base token is not specified in the box");
+      if (baseId === quoteId) throw Error("Base and quote tokens must be different");
       if (!validateToken(quoteId, box, 1)) throw Error("Invalid quote token for the contract");
 
       this.#assets = {
@@ -191,10 +192,14 @@ export class GridOrder implements BuySellOrder<PriceRange> {
   static create(options: GridOrderCreationParams): OutputBuilder {
     const assets = options.assets;
     if (assets.quote.tokenId === "ERG") throw Error("Quote asset cannot be ERG");
+    if (assets.base.tokenId === assets.quote.tokenId)
+      throw Error("Base and quote assets must be different");
+    if (assets.base.amount < 0n || assets.quote.amount < 0n)
+      throw Error("Asset amounts cannot be negative");
     if (!assets?.base.amount && !assets?.quote.amount)
       throw Error("At least one of base or quote assets must be specified");
-    if (!options.prices.bid || !options.prices.ask)
-      throw Error("Prices must be specified for both bid and ask");
+    if (options.prices.bid <= 0n || options.prices.ask <= 0n)
+      throw Error("Bid and ask prices must be greater than zero");
     if (options.prices.bid > options.prices.ask)
       throw Error("Bid price must be lower than or equal to the ask price");
 
@@ -205,6 +210,10 @@ export class GridOrder implements BuySellOrder<PriceRange> {
 
       builder = new OutputBuilder(baseAmount, contract).addTokens(assets.quote);
     } else {
+      // the contract requires at least one base token unit at index 0, otherwise the
+      // quote token takes its place and the order trades the quote token against itself
+      if (!assets.base.amount) throw Error("Base amount must be specified for T2T orders");
+
       const contract = CONTRACTS.T2T.new(assets.quote.tokenId);
 
       builder = new OutputBuilder(estimateMinBoxValue(), contract)

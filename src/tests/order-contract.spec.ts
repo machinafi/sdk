@@ -22,6 +22,18 @@ describe("OrderContract", () => {
       const result = contract.new(SOME_TOKEN_ID);
       expect(result.length).toBe(E2T_LIMIT_PROPOSITION.length);
     });
+
+    it("throws for a token ID shorter than 64 chars", () => {
+      expect(() => contract.new(SOME_TOKEN_ID.slice(0, 62))).toThrow("Invalid quote token ID");
+    });
+
+    it("throws for a token ID longer than 64 chars", () => {
+      expect(() => contract.new(SOME_TOKEN_ID + "00")).toThrow("Invalid quote token ID");
+    });
+
+    it("throws for a non-hex token ID", () => {
+      expect(() => contract.new("z" + SOME_TOKEN_ID.slice(1))).toThrow("Invalid quote token ID");
+    });
   });
 
   describe("getQuoteId", () => {

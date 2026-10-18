@@ -319,6 +319,20 @@ describe("GridOrder", () => {
       ).toThrow("Base and quote assets must be different");
     });
 
+    it("throws for a malformed quote token ID", () => {
+      // with no quote tokens in the box, nothing else would reject the corrupted, unspendable tree
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: ONE_ERG },
+            quote: { tokenId: SIGUSD_TOKEN_ID.slice(0, 62), amount: 0n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        }),
+      ).toThrow("Invalid quote token ID");
+    });
+
     it("throws when T2T base amount is zero", () => {
       // without a base token at index 0, the quote token would take its place
       expect(() =>

@@ -222,17 +222,18 @@ export class LimitOrder implements BuySellOrder {
       if (!assets.base.amount) throw Error("Base amount must be specified for sell orders");
     }
 
+    const isE2T = assets.base.tokenId === "ERG";
+    if (!contract && !isE2T) throw Error("T2T limit orders are not supported");
+    if (contract && (contract.type === "E2T") !== isE2T)
+      throw Error(`Base asset does not match the ${contract.type} contract`);
+
+    const tree = (contract ?? CONTRACTS.E2T).new(assets.quote.tokenId);
+
     let builder: OutputBuilder;
-    if (assets.base.tokenId === "ERG") {
-      const tree = contract
-        ? contract.new(assets.quote.tokenId)
-        : CONTRACTS.E2T.new(assets.quote.tokenId);
+    if (isE2T) {
       const baseAmount = assets.base.amount || estimateMinBoxValue();
       builder = new OutputBuilder(baseAmount, tree).addTokens(assets.quote);
     } else {
-      const tree = contract
-        ? contract.new(assets.quote.tokenId)
-        : CONTRACTS.T2T.new(assets.quote.tokenId);
       builder = new OutputBuilder(estimateMinBoxValue(), tree)
         .addTokens(assets.base)
         .addTokens(assets.quote);

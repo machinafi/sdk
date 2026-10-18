@@ -6,7 +6,7 @@ import { SBool, SGroupElement, SInt, SLong, SSigmaProp } from "@fleet-sdk/serial
 import { describe, expect, it } from "vitest";
 
 import { GridOrder } from "../grid-order";
-import { LimitOrder } from "../limit-order";
+import { LimitOrder, type LimitOrderType } from "../limit-order";
 import { OrderContract } from "../order-contract";
 import { SIGUSD_TOKEN_ID, RSN_TOKEN_ID, FAKE_TOKEN_ID, ONE_ERG } from "./utils";
 
@@ -52,15 +52,14 @@ function makeSellOrder(baseAmount: bigint, price: bigint): LimitOrder {
   return new LimitOrder(mockUTxO(candidate) as Box<bigint, R4ToR6Registers>);
 }
 
-function makeT2TBuyOrder(quoteAmount: bigint, price: bigint): LimitOrder {
+function mockT2TBox(type: LimitOrderType, base: bigint, quote: bigint, price: bigint) {
   const candidate = LimitOrder.create(
     {
       owner: owner.address,
-      type: "buy",
-      // Use non-zero base amount so RSN is included in the box (FleetSDK strips zero-amount tokens)
+      type,
       assets: {
-        base: { tokenId: RSN_TOKEN_ID, amount: 1n },
-        quote: { tokenId: SIGUSD_TOKEN_ID, amount: quoteAmount },
+        base: { tokenId: RSN_TOKEN_ID, amount: base },
+        quote: { tokenId: SIGUSD_TOKEN_ID, amount: quote },
       },
       price,
     },
@@ -69,27 +68,17 @@ function makeT2TBuyOrder(quoteAmount: bigint, price: bigint): LimitOrder {
     .setCreationHeight(1)
     .build();
 
-  return new LimitOrder(mockUTxO(candidate) as Box<bigint, R4ToR6Registers>, fakeT2TContract);
+  return mockUTxO(candidate) as Box<bigint, R4ToR6Registers>;
+}
+
+function makeT2TBuyOrder(quoteAmount: bigint, price: bigint): LimitOrder {
+  // Use non-zero base amount so RSN is included in the box (FleetSDK strips zero-amount tokens)
+  return new LimitOrder(mockT2TBox("buy", 1n, quoteAmount, price), fakeT2TContract);
 }
 
 function makeT2TSellOrder(baseAmount: bigint, price: bigint): LimitOrder {
-  const candidate = LimitOrder.create(
-    {
-      owner: owner.address,
-      type: "sell",
-      // Use non-zero quote amount so SIGUSD is included in the box (FleetSDK strips zero-amount tokens)
-      assets: {
-        base: { tokenId: RSN_TOKEN_ID, amount: baseAmount },
-        quote: { tokenId: SIGUSD_TOKEN_ID, amount: 1n },
-      },
-      price,
-    },
-    fakeT2TContract,
-  )
-    .setCreationHeight(1)
-    .build();
-
-  return new LimitOrder(mockUTxO(candidate) as Box<bigint, R4ToR6Registers>, fakeT2TContract);
+  // Use non-zero quote amount so SIGUSD is included in the box (FleetSDK strips zero-amount tokens)
+  return new LimitOrder(mockT2TBox("sell", baseAmount, 1n, price), fakeT2TContract);
 }
 
 describe("LimitOrder", () => {
@@ -264,50 +253,20 @@ describe("LimitOrder", () => {
     });
 
     it("throws when T2T box has no base token", () => {
-      const candidate = LimitOrder.create(
-        {
-          owner: owner.address,
-          type: "buy",
-          assets: {
-            base: { tokenId: RSN_TOKEN_ID, amount: 0n },
-            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
-          },
-          price: 5n,
-        },
-        fakeT2TContract,
-      )
-        .setCreationHeight(1)
-        .build();
-
-      const box = mockUTxO({ ...candidate, assets: [] }) as Box<bigint, R4ToR6Registers>;
+      const box = { ...mockT2TBox("buy", 1n, 100n, 5n), assets: [] };
       expect(() => new LimitOrder(box, fakeT2TContract)).toThrow(
         "The base token is not specified in the box",
       );
     });
 
     it("throws for an invalid quote token (T2T)", () => {
-      const candidate = LimitOrder.create(
-        {
-          owner: owner.address,
-          type: "buy",
-          assets: {
-            base: { tokenId: RSN_TOKEN_ID, amount: 0n },
-            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
-          },
-          price: 5n,
-        },
-        fakeT2TContract,
-      )
-        .setCreationHeight(1)
-        .build();
-
-      const box = mockUTxO({
-        ...candidate,
+      const box = {
+        ...mockT2TBox("buy", 1n, 100n, 5n),
         assets: [
           { tokenId: RSN_TOKEN_ID, amount: 1n },
           { tokenId: FAKE_TOKEN_ID, amount: 100n },
         ],
-      }) as Box<bigint, R4ToR6Registers>;
+      };
 
       expect(() => new LimitOrder(box, fakeT2TContract)).toThrow(
         "Invalid quote token for the contract",
@@ -546,38 +505,91 @@ describe("LimitOrder", () => {
           },
           price: 5n,
         },
-        fakeT2TContract,
+        new OrderContract(E2T_LIMIT_PROPOSITION, "E2T"),
       );
       expect(builder).toBeDefined();
     });
 
-    it("creates a T2T order using the default CONTRACTS.T2T when base is not ERG", () => {
-      const builder = LimitOrder.create({
-        owner: owner.address,
-        type: "sell",
-        assets: {
-          base: { tokenId: RSN_TOKEN_ID, amount: ONE_ERG },
-          quote: { tokenId: SIGUSD_TOKEN_ID, amount: 0n },
-        },
-        price: 5n,
-      });
-      expect(builder).toBeDefined();
+    it("throws for a T2T order when base is not ERG", () => {
+      expect(() =>
+        LimitOrder.create({
+          owner: owner.address,
+          type: "sell",
+          assets: {
+            base: { tokenId: RSN_TOKEN_ID, amount: ONE_ERG },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 0n },
+          },
+          price: 5n,
+        }),
+      ).toThrow("T2T limit orders are not supported");
     });
 
-    it("creates a T2T order using a custom contract when base is not ERG", () => {
-      const builder = LimitOrder.create(
+    it("creates a T2T order when a custom T2T contract is provided", () => {
+      const candidate = LimitOrder.create(
         {
           owner: owner.address,
           type: "buy",
           assets: {
-            base: { tokenId: RSN_TOKEN_ID, amount: 0n },
+            base: { tokenId: RSN_TOKEN_ID, amount: 10n },
             quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
           },
           price: 5n,
         },
         fakeT2TContract,
+      )
+        .setCreationHeight(1)
+        .build();
+
+      expect(candidate.ergoTree).toBe(fakeT2TContract.new(SIGUSD_TOKEN_ID));
+      expect(candidate.assets).toEqual([
+        { tokenId: RSN_TOKEN_ID, amount: 10n },
+        { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+      ]);
+
+      const order = new LimitOrder(
+        mockUTxO(candidate) as Box<bigint, R4ToR6Registers>,
+        fakeT2TContract,
       );
-      expect(builder).toBeDefined();
+      expect(order.contract.type).toBe("T2T");
+      expect(order.price).toBe(5n);
+      expect(order.assets).toEqual({
+        base: { tokenId: RSN_TOKEN_ID, amount: 10n },
+        quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+      });
+    });
+
+    it("throws when a custom E2T contract is provided and base is not ERG", () => {
+      expect(() =>
+        LimitOrder.create(
+          {
+            owner: owner.address,
+            type: "buy",
+            assets: {
+              base: { tokenId: RSN_TOKEN_ID, amount: 10n },
+              quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+            },
+            price: 5n,
+          },
+          new OrderContract(E2T_LIMIT_PROPOSITION, "E2T"),
+        ),
+      ).toThrow("Base asset does not match the E2T contract");
+    });
+
+    it("throws when a T2T contract is provided even if base is ERG", () => {
+      expect(() =>
+        LimitOrder.create(
+          {
+            owner: owner.address,
+            type: "buy",
+            assets: {
+              base: { tokenId: "ERG", amount: 0n },
+              quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+            },
+            price: 5n,
+          },
+          fakeT2TContract,
+        ),
+      ).toThrow("Base asset does not match the T2T contract");
     });
   });
 });

@@ -42,7 +42,13 @@
     val selfTokenAmount = selfToken._2;
     val childTokenAmount = childToken._2;
 
-    val isPartial = if (isBuyAction) { childTokenAmount > 0L } else { childBox.value >= SAFE_MIN_BOX_VALUE };
+    val isPartial = if (isBuyAction) {
+      childTokenAmount > 0L                   // tokens left to be bought
+    } else {
+      childBox.value > SAFE_MIN_BOX_VALUE &&  // enough nanoergs to safely recreate the order box
+      childBox.value >= price                 // enough nanoergs to pay at least one token
+    };
+
     val validRecreation = if (isPartial) {
       // =============================== //
       // Partially filling               //

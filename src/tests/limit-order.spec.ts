@@ -1,6 +1,11 @@
 import type { Box } from "@fleet-sdk/common";
 import { first } from "@fleet-sdk/common";
-import { OutputBuilder, SAFE_MIN_BOX_VALUE, type R4ToR6Registers } from "@fleet-sdk/core";
+import {
+  OutputBuilder,
+  SAFE_MIN_BOX_VALUE,
+  TransactionBuilder,
+  type R4ToR6Registers,
+} from "@fleet-sdk/core";
 import { MockChain, mockUTxO } from "@fleet-sdk/mock-chain";
 import { SBool, SGroupElement, SInt, SLong, SSigmaProp } from "@fleet-sdk/serializer";
 import { describe, expect, it } from "vitest";
@@ -12,13 +17,14 @@ import { SIGUSD_TOKEN_ID, RSN_TOKEN_ID, FAKE_TOKEN_ID, ONE_ERG } from "./utils";
 
 // E2T limit order proposition with placeholder token id
 const E2T_LIMIT_PROPOSITION =
-  "1aa702080e20cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e05000400040005000580897a05000500d804d601e30004d6027300d603860272027301d604e4c6a7040895e67201d807d605e4c6a70601d606b2a5e4720100d607b2db630872067302017203d6088c720702d6098c720701d60ae4c6a70505d60b8cb2db6308a7730301720302d1ed95957205917208730492c172067305ededededed93c27206c2a7937209720293e4c672060408720493e4c672060505720a93e4c672060601720593e4c67206070ec5a7eded93c27206d07204937209720293e4c67206040ec5a7957205d801d60c99c17206c1a7ed91720c730692720c9c99720b7208720ad801d60c997208720bed91720c7307929c720c720a99c1a7c172067204";
+  "1ab302080e20cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e05000400040005000580897a05000500d804d601e30004d6027300d603860272027301d604e4c6a7040895e67201d807d605e4c6a70601d606b2a5e4720100d607b2db630872067302017203d6088c720702d609e4c6a70505d60a8c720701d60b8cb2db6308a7730301720302d1ed959572059172087304d801d60cc17206ed91720c730592720c7209ededededed93c27206c2a793720a720293e4c672060408720493e4c672060505720993e4c672060601720593e4c67206070ec5a7eded93c27206d0720493720a720293e4c67206040ec5a7957205d801d60c99c17206c1a7ed91720c730692720c9c99720b72087209d801d60c997208720bed91720c7307929c720c720999c1a7c172067204";
 
 // Fake T2T contract using E2T proposition — lets us exercise T2T code paths without a real T2T contract
 const fakeT2TContract = new OrderContract(E2T_LIMIT_PROPOSITION, "T2T");
 
 const chain = new MockChain();
 const owner = chain.newParty("Owner");
+const seller = chain.newParty("Seller");
 
 function makeBuyOrder(quoteAmount: bigint, price: bigint): LimitOrder {
   const candidate = LimitOrder.create({
@@ -50,6 +56,23 @@ function makeSellOrder(baseAmount: bigint, price: bigint): LimitOrder {
     .build();
 
   return new LimitOrder(mockUTxO(candidate) as Box<bigint, R4ToR6Registers>);
+}
+
+function executeSell(order: LimitOrder, amount: bigint) {
+  seller.addBalance({ nanoergs: ONE_ERG, tokens: [{ tokenId: SIGUSD_TOKEN_ID, amount }] });
+
+  const transaction = new TransactionBuilder(chain.height)
+    .extend(order.sell(amount))
+    .from(seller.utxos)
+    .sendChangeTo(seller.address)
+    .build();
+
+  try {
+    const success = chain.execute(transaction, { signers: [seller] });
+    return { success, child: first(transaction.outputs) };
+  } finally {
+    chain.reset({ clearParties: true });
+  }
 }
 
 function mockT2TBox(type: LimitOrderType, base: bigint, quote: bigint, price: bigint) {
@@ -372,8 +395,67 @@ describe("LimitOrder", () => {
       expect(order.sell(1n)).toBeTypeOf("function");
     });
 
+    it("sends funds to the owner (full fill) when exactly SAFE_MIN_BOX_VALUE nanoergs remain", () => {
+      // base=2_000_000n, price=1_000n, amount=1_000n → remainder=1_000_000n == SAFE_MIN_BOX_VALUE
+      // the contract only treats childBox.value > SAFE_MIN_BOX_VALUE as a partial fill
+      const order = makeSellOrder(2n * SAFE_MIN_BOX_VALUE, 1_000n);
+      const { success, child } = executeSell(order, 1_000n);
+
+      expect(success).toBe(true);
+      expect(child.value).toBe(SAFE_MIN_BOX_VALUE);
+      expect(child.ergoTree).toBe(owner.address.ergoTree);
+    });
+
+    it("recreates the order (partial fill) when more than SAFE_MIN_BOX_VALUE nanoergs remain", () => {
+      // base=2_000_000n, price=1_000n, amount=999n → remainder=1_001_000n > SAFE_MIN_BOX_VALUE
+      const order = makeSellOrder(2n * SAFE_MIN_BOX_VALUE, 1_000n);
+      const { success, child } = executeSell(order, 999n);
+
+      expect(success).toBe(true);
+      expect(child.value).toBe(1_001_000n);
+      expect(child.ergoTree).toBe(order.box.ergoTree);
+    });
+
+    it("sends funds to the owner (full fill) when the remainder cannot pay for one token", () => {
+      // base=9 ERG, price=5 ERG, amount=1n → remainder=4 ERG: above SAFE_MIN_BOX_VALUE, but below price
+      const order = makeSellOrder(9n * ONE_ERG, 5n * ONE_ERG);
+      const { success, child } = executeSell(order, 1n);
+
+      expect(success).toBe(true);
+      expect(child.value).toBe(4n * ONE_ERG);
+      expect(child.ergoTree).toBe(owner.address.ergoTree);
+    });
+
+    it("recreates the order (partial fill) when the remainder can pay for exactly one token", () => {
+      // base=10 ERG, price=5 ERG, amount=1n → remainder=5 ERG == price
+      const order = makeSellOrder(10n * ONE_ERG, 5n * ONE_ERG);
+      const { success, child } = executeSell(order, 1n);
+
+      expect(success).toBe(true);
+      expect(child.value).toBe(5n * ONE_ERG);
+      expect(child.ergoTree).toBe(order.box.ergoTree);
+    });
+
+    it("throws for a fulfilling sell when the remainder cannot cover the minimum box value", () => {
+      // base=10_000n, price=10n, amount=999n → remainder=10n, far below the owner box minimum value
+      const order = makeSellOrder(10_000n, 10n);
+      expect(() => executeSell(order, 999n)).toThrow(
+        /Remaining base amount is not enough to cover the minimum box value of \d+ nanoergs/,
+      );
+    });
+
+    it("sends funds to the owner (full fill) when the remainder covers the minimum box value", () => {
+      // base=109_990n, price=10n, amount=999n → remainder=100_000n, above the owner box minimum value
+      const order = makeSellOrder(109_990n, 10n);
+      const { success, child } = executeSell(order, 999n);
+
+      expect(success).toBe(true);
+      expect(child.value).toBe(100_000n);
+      expect(child.ergoTree).toBe(owner.address.ergoTree);
+    });
+
     it("throws 'Invalid owner register' for a fulfilling sell when R4 is not SSigmaProp", () => {
-      // fulfilling: SAFE_MIN_BOX_VALUE >= base-payout → base=1000n, price=1n, amount=999n → remainder=1n
+      // fulfilling: SAFE_MIN_BOX_VALUE > base-payout → base=1000n, price=1n, amount=999n → remainder=1n
       const candidate = new OutputBuilder(SAFE_MIN_BOX_VALUE, fakeT2TContract.new(SIGUSD_TOKEN_ID))
         .addTokens([
           { tokenId: RSN_TOKEN_ID, amount: 1000n },

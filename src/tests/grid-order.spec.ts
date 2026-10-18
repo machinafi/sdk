@@ -292,6 +292,18 @@ describe("GridOrder", () => {
     });
   });
 
+  it("rejects a box whose contract has tampered constants", () => {
+    const box = makeE2TOrder(ONE_ERG, 100n).box;
+    // swap the BUY and SELL price index constants: same length and template, inverted prices
+    const ergoTree = box.ergoTree.replace(
+      "0500040004000500040005000402",
+      "0500040004000500040205000400",
+    );
+
+    expect(ergoTree).not.toBe(box.ergoTree);
+    expect(() => new GridOrder({ ...box, ergoTree })).toThrow("Invalid Grid Order contract");
+  });
+
   describe("create", () => {
     it("throws when quote asset is ERG", () => {
       expect(() =>

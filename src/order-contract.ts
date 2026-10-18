@@ -41,6 +41,12 @@ export class OrderContract {
   }
 
   validate(proposition: string): boolean {
-    return proposition?.length === this.proposition.length && proposition.endsWith(this.template);
+    if (proposition?.length !== this.proposition.length) return false;
+
+    // without a quote placeholder, there's nothing to substitute: the tree must match exactly
+    if (this.#quotePlaceholder.index === -1) return proposition === this.proposition;
+
+    const quoteId = this.getQuoteId(proposition);
+    return TOKEN_ID_PATTERN.test(quoteId) && proposition === this.new(quoteId);
   }
 }

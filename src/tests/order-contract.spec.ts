@@ -70,6 +70,25 @@ describe("OrderContract", () => {
       expect(contract.validate(wrongProposition)).toBe(false);
     });
 
+    it("rejects a proposition with a tampered constant", () => {
+      // SAFE_MIN_BOX_VALUE (1_000_000) changed to a same-width value: the template is unchanged
+      const tampered = contract.new(SOME_TOKEN_ID).replace("0580897a", "0580897b");
+      expect(tampered).not.toBe(contract.new(SOME_TOKEN_ID));
+      expect(tampered.endsWith(contract.template)).toBe(true);
+      expect(contract.validate(tampered)).toBe(false);
+    });
+
+    it("rejects a proposition with a malformed token ID", () => {
+      const proposition = E2T_LIMIT_PROPOSITION.replace(QUOTE_TOKEN_ID_PLACEHOLDER, "z".repeat(64));
+      expect(contract.validate(proposition)).toBe(false);
+    });
+
+    it("requires an exact match for a contract without a quote placeholder", () => {
+      const fixed = new OrderContract("0008cd03", "T2T");
+      expect(fixed.validate("0008cd03")).toBe(true);
+      expect(fixed.validate("0008cd04")).toBe(false);
+    });
+
     it("rejects a proposition from a different contract", () => {
       const otherContract = new OrderContract(
         "1af401080e20cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e0500040004000500040005000402d804d601e30104d6027300d603860272027301d604e4c6a7040895e67201d805d605b2a5e4720100d606b2db630872057302017203d607e4c6a70511d6088cb2db6308a7730301720302d6098c720602d1ededededed93c27205c2a7938c720601720293e4c672050408720493e4c672050511720793e4c67205060ec5a795e4e30001d801d60a99c17205c1a7ed91720a730492720a9c9972087209b27207730500d801d60a9972097208ed91720a7306929c720ab2720773070099c1a7c172057204",

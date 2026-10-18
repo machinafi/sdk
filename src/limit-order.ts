@@ -1,5 +1,6 @@
 import { ensureUTxOBigInt, first, type Box, type BoxCandidate } from "@fleet-sdk/common";
 import {
+  BOX_VALUE_PER_BYTE,
   ErgoAddress,
   ErgoUnsignedInput,
   estimateMinBoxValue,
@@ -10,6 +11,7 @@ import {
   type R4ToR6Registers,
 } from "@fleet-sdk/core";
 import {
+  estimateBoxSize,
   SBool,
   SByte,
   SColl,
@@ -26,11 +28,14 @@ import type { ActionHandler, BuySellOrder, ExchangeableAssets } from "./types";
 
 const CONTRACTS = {
   E2T: new OrderContract(
-    "1a9d02080e20cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e05000400040005000580897a05000500d806d601e30004d6027300d603860272027301d604e4c6a70601d605e4c6a70408d606e4c6a7050595e67201d804d607b2a5e4720100d608b2db630872077302017203d6098c720802d60a8cb2db6308a7730301720302d1ed95957204917209730492c172077305ededededed93c27207c2a7938c720801720293e4c672070408720593e4c672070505720693e4c672070601720493e4c67207070ec5a7ed93c27207d0720593e4c67207040ec5a7957204d801d60b99c17207c1a7ed91720b730692720b9c99720a72097206d801d60b997209720aed91720b7307929c720b720699c1a7c172077205",
+    "1ab302080e20cafe05e06b54b00eb0067c7c5e900c4d394030f4ac2e351f873a28f6158ced6e05000400040005000580897a05000500d804d601e30004d6027300d603860272027301d604e4c6a7040895e67201d807d605e4c6a70601d606b2a5e4720100d607b2db630872067302017203d6088c720702d609e4c6a70505d60a8c720701d60b8cb2db6308a7730301720302d1ed959572059172087304d801d60cc17206ed91720c730592720c7209ededededed93c27206c2a793720a720293e4c672060408720493e4c672060505720993e4c672060601720593e4c67206070ec5a7eded93c27206d0720493720a720293e4c67206040ec5a7957205d801d60c99c17206c1a7ed91720c730692720c9c99720b72087209d801d60c997208720bed91720c7307929c720c720999c1a7c172067204",
     "E2T",
   ),
   T2T: new OrderContract("0000", "T2T"),
 };
+
+// The transaction height is unknown at this point, so use the largest possible creation height
+const MAX_CREATION_HEIGHT = 2 ** 31 - 1;
 
 export type LimitOrderType = "buy" | "sell";
 
@@ -168,7 +173,8 @@ export class LimitOrder implements BuySellOrder {
       const input = new ErgoUnsignedInput(box);
       let output: OutputBuilder;
 
-      const fulfilling = SAFE_MIN_BOX_VALUE >= this.#assets.base.amount - basePayout;
+      const remaining = this.#assets.base.amount - basePayout;
+      const fulfilling = SAFE_MIN_BOX_VALUE >= remaining || this.#price > remaining;
       if (fulfilling) {
         const owner = SConstant.from<Uint8Array>(box.additionalRegisters.R4);
         if (owner.type.toString() !== "SSigmaProp") throw Error("Invalid owner register");
@@ -180,6 +186,12 @@ export class LimitOrder implements BuySellOrder {
             .addTokens(this.#assets.quote)
             .addTokens({ tokenId: this.#assets.quote.tokenId, amount })
             .setAdditionalRegisters({ R4: SColl(SByte, box.boxId) });
+
+          const minBoxValue = estimateMinValue(output);
+          if (output.value < minBoxValue)
+            throw Error(
+              `Remaining base amount is not enough to cover the minimum box value of ${minBoxValue} nanoergs`,
+            );
         } else {
           throw Error("Not supported");
         }
@@ -222,17 +234,18 @@ export class LimitOrder implements BuySellOrder {
       if (!assets.base.amount) throw Error("Base amount must be specified for sell orders");
     }
 
+    const isE2T = assets.base.tokenId === "ERG";
+    if (!contract && !isE2T) throw Error("T2T limit orders are not supported");
+    if (contract && (contract.type === "E2T") !== isE2T)
+      throw Error(`Base asset does not match the ${contract.type} contract`);
+
+    const tree = (contract ?? CONTRACTS.E2T).new(assets.quote.tokenId);
+
     let builder: OutputBuilder;
-    if (assets.base.tokenId === "ERG") {
-      const tree = contract
-        ? contract.new(assets.quote.tokenId)
-        : CONTRACTS.E2T.new(assets.quote.tokenId);
+    if (isE2T) {
       const baseAmount = assets.base.amount || estimateMinBoxValue();
       builder = new OutputBuilder(baseAmount, tree).addTokens(assets.quote);
     } else {
-      const tree = contract
-        ? contract.new(assets.quote.tokenId)
-        : CONTRACTS.T2T.new(assets.quote.tokenId);
       builder = new OutputBuilder(estimateMinBoxValue(), tree)
         .addTokens(assets.base)
         .addTokens(assets.quote);
@@ -244,6 +257,18 @@ export class LimitOrder implements BuySellOrder {
       R6: SBool(buy),
     });
   }
+}
+
+function estimateMinValue(output: OutputBuilder): bigint {
+  const size = estimateBoxSize({
+    value: output.value,
+    ergoTree: output.ergoTree,
+    creationHeight: output.creationHeight ?? MAX_CREATION_HEIGHT,
+    assets: output.assets.toArray(),
+    additionalRegisters: output.additionalRegisters,
+  });
+
+  return BigInt(size) * BOX_VALUE_PER_BYTE;
 }
 
 export interface LimitOrderCreationParams {

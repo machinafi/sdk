@@ -1,5 +1,7 @@
 import type { Amount, Box } from "@fleet-sdk/common";
 import {
+  OutputBuilder,
+  SAFE_MIN_BOX_VALUE,
   SGroupElement,
   SInt,
   SLong,
@@ -56,6 +58,44 @@ describe("Limit order | erg <-> token", () => {
     expect(success).toBe(true);
     expect(bob.balance).toEqual({ nanoergs: ONE_ERG, tokens: [sigusd(100n)] });
     expect(contract.balance).toEqual({ nanoergs: 0n, tokens: [] });
+  });
+
+  it("Should allow the owner to close a malformed order without R5", () => {
+    // arrange
+    const order = mockLimitOrder("buy", { owner: bob, assets: { base: ONE_ERG, quote: 100n } });
+    bob.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n)] });
+    chain.addParty(bob);
+    chain.addParty(contract);
+
+    const creationTx = new TransactionBuilder(chain.height)
+      .from(bob.utxos)
+      .to(OutputBuilder.from(order.box))
+      .eject(({ outputs }) => {
+        // registers must be densely packed, so dropping R5 also drops R6
+        const registers = outputs.at(0).additionalRegisters;
+        delete registers.R5;
+        delete registers.R6;
+      })
+      .build();
+
+    expect(chain.execute(creationTx, { signers: [bob] })).toBe(true);
+    expect(contract.utxos.length).toBe(1);
+
+    const malformedBox = contract.utxos.at(0);
+    expect(malformedBox.additionalRegisters.R5).toBeUndefined();
+
+    const closeTx = new TransactionBuilder(chain.height)
+      .extend(({ addInputs }) => addInputs(malformedBox)) // close the order
+      .sendChangeTo(bob.address)
+      .build();
+
+    // act
+    const success = chain.execute(closeTx, { signers: [bob] });
+
+    // assert
+    expect(success).toBe(true);
+    expect(contract.utxos.length).toBe(0);
+    expect(bob.balance).toEqual({ nanoergs: ONE_ERG, tokens: [sigusd(100n)] });
   });
 
   it("Should partially buy tokens", () => {
@@ -221,7 +261,7 @@ describe("Limit order | erg <-> token", () => {
   it("Should fully sell tokens and send to the owner", () => {
     // arrange
     const price = 10n;
-    const order = mockLimitOrder("sell", { owner: bob, assets: { base: 10000n }, price });
+    const order = mockLimitOrder("sell", { owner: bob, assets: { base: 109_990n }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(1000n)] }); // Alice has tokens to sell
@@ -258,15 +298,190 @@ describe("Limit order | erg <-> token", () => {
     // funds must be sent to the owner
     expect(bob.utxos.length).toBe(1);
     expect(bob.balance).toStrictEqual({
-      nanoergs: 10n, // minimal ERG left (10000 - 9990)
+      nanoergs: 100_000n, // ERG left (109_990 - 9_990), enough to cover the minimum box value
       tokens: [sigusd(SELL_AMOUNT)], // bob gets the 1000 tokens
     });
+  });
+
+  it("Should fully sell tokens when exactly SAFE_MIN_BOX_VALUE nanoergs remain", () => {
+    // arrange
+    const price = 1_000n;
+    const order = mockLimitOrder("sell", {
+      owner: bob,
+      assets: { base: 2n * SAFE_MIN_BOX_VALUE },
+      price,
+    });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(1_000n)] });
+    chain.addParty(bob);
+
+    const SELL_AMOUNT = 1_000n;
+    const PAY_AMOUNT = SELL_AMOUNT * price; // 1_000 * 1_000 = 1_000_000 nanoergs, leaving exactly SAFE_MIN_BOX_VALUE
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.sell(SELL_AMOUNT))
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    const success = chain.execute(transaction, { signers: [alice] });
+
+    // assert
+    expect(success).toBe(true);
+
+    // the contract only treats value > SAFE_MIN_BOX_VALUE as a partial fill, so funds go to the owner
+    expect(contract.utxos.length).toBe(0);
+    expect(alice.balance).toStrictEqual({
+      nanoergs: ONE_ERG + PAY_AMOUNT,
+      tokens: [],
+    });
+    expect(bob.balance).toStrictEqual({
+      nanoergs: SAFE_MIN_BOX_VALUE,
+      tokens: [sigusd(SELL_AMOUNT)],
+    });
+  });
+
+  it("Should not allow partially filling a sell order when exactly SAFE_MIN_BOX_VALUE nanoergs remain", () => {
+    // arrange
+    const price = 1_000n;
+    const order = mockLimitOrder("sell", {
+      owner: bob,
+      assets: { base: 2n * SAFE_MIN_BOX_VALUE },
+      price,
+    });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(1_000n)] });
+
+    // SDK builds a partial fill for 999 tokens (1_001_000 left), then the child is tweaked to
+    // a fairly priced 1_000 tokens sell, leaving exactly SAFE_MIN_BOX_VALUE in the recreated order
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        order.sell(999n, (output) => output.setValue(SAFE_MIN_BOX_VALUE).addTokens(sigusd(1n))),
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act / assert
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should partially sell tokens when more than SAFE_MIN_BOX_VALUE nanoergs remain", () => {
+    // arrange
+    const price = 1_000n;
+    const order = mockLimitOrder("sell", {
+      owner: bob,
+      assets: { base: 2n * SAFE_MIN_BOX_VALUE },
+      price,
+    });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(999n)] });
+
+    const SELL_AMOUNT = 999n;
+    const PAY_AMOUNT = SELL_AMOUNT * price; // 999_000 nanoergs, leaving 1_001_000 > SAFE_MIN_BOX_VALUE
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.sell(SELL_AMOUNT))
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    const success = chain.execute(transaction, { signers: [alice] });
+
+    // assert
+    expect(success).toBe(true);
+    expect(contract.utxos.length).toBe(1);
+    expect(contract.balance).toStrictEqual({
+      nanoergs: 2n * SAFE_MIN_BOX_VALUE - PAY_AMOUNT,
+      tokens: [sigusd(SELL_AMOUNT)],
+    });
+  });
+
+  it("Should fully sell tokens when the remainder cannot pay for one token", () => {
+    // arrange
+    const price = 5n * ONE_ERG;
+    const order = mockLimitOrder("sell", { owner: bob, assets: { base: 9n * ONE_ERG }, price });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(1n)] });
+    chain.addParty(bob);
+
+    const SELL_AMOUNT = 1n;
+    const PAY_AMOUNT = SELL_AMOUNT * price; // 5 ERG, leaving 4 ERG: above SAFE_MIN_BOX_VALUE, but below price
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.sell(SELL_AMOUNT))
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    const success = chain.execute(transaction, { signers: [alice] });
+
+    // assert
+    expect(success).toBe(true);
+
+    // no one can sell a single token for the remaining nanoergs, so funds go to the owner
+    expect(contract.utxos.length).toBe(0);
+    expect(alice.balance).toStrictEqual({ nanoergs: ONE_ERG + PAY_AMOUNT, tokens: [] });
+    expect(bob.balance).toStrictEqual({
+      nanoergs: 4n * ONE_ERG,
+      tokens: [sigusd(SELL_AMOUNT)],
+    });
+  });
+
+  it("Should not allow partially filling a sell order when the remainder cannot pay for one token", () => {
+    // arrange
+    const price = 5n * ONE_ERG;
+    const order = mockLimitOrder("sell", { owner: bob, assets: { base: 14n * ONE_ERG }, price });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(2n)] });
+
+    // SDK builds a partial fill for 1 token (9 ERG left), then the child is tweaked to
+    // a fairly priced 2 tokens sell, leaving 4 ERG (below price) in the recreated order
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.sell(1n, (output) => output.setValue(4n * ONE_ERG).addTokens(sigusd(1n))))
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act / assert
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should partially sell tokens when the remainder can pay for exactly one token", () => {
+    // arrange
+    const price = 5n * ONE_ERG;
+    const order = mockLimitOrder("sell", { owner: bob, assets: { base: 10n * ONE_ERG }, price });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(1n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(order.sell(1n))
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    const success = chain.execute(transaction, { signers: [alice] });
+
+    // assert
+    expect(success).toBe(true);
+    expect(contract.utxos.length).toBe(1);
+    expect(contract.balance).toStrictEqual({ nanoergs: price, tokens: [sigusd(1n)] });
   });
 
   it("Should now allow stealing leftover nanoergs when fully filling a sell order", () => {
     // arrange
     const price = 10n;
-    const order = mockLimitOrder("sell", { owner: bob, assets: { base: 10000n }, price });
+    const order = mockLimitOrder("sell", { owner: bob, assets: { base: 109_990n }, price });
 
     contract.addUTxOs(order.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(1000n)] }); // Alice has tokens to sell
@@ -451,6 +666,62 @@ describe("Limit order | erg <-> token", () => {
       .extend(
         // attempt to sell tokens but maliciously replace the token ID
         order.sell(10n, (output) => output.eject((x) => (x.tokens.at(0).tokenId = FAKE_TOKEN_ID))),
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should not allow fully filling a sell order when the Token ID is swapped", () => {
+    // arrange
+    const price = 10n;
+    const order = mockLimitOrder("sell", { owner: bob, assets: { base: ONE_ERG }, price });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [fakeToken(1_000_000_000n)] }); // no sigusd at all
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        // attempt to fully fill the order but maliciously pay with fake tokens
+        order.sell(ONE_ERG / price - 10_000n, (output) =>
+          output.eject((x) => {
+            x.tokens.at(0).tokenId = FAKE_TOKEN_ID;
+            x.tokens.at(0).amount = 1_000_000_000n;
+          }),
+        ),
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should not allow fully filling a partially filled sell order when the Token ID is swapped", () => {
+    // arrange
+    const price = 10n;
+    const order = mockLimitOrder("sell", {
+      owner: bob,
+      assets: { base: ONE_ERG, quote: 500n }, // already holds collected quote tokens
+      price,
+    });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [fakeToken(1_000_000_000n)] }); // no sigusd at all
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        // attempt to fully fill the order with fake tokens, stealing the collected quote tokens
+        order.sell(ONE_ERG / price - 10_000n, (output) =>
+          output.eject((x) => {
+            x.tokens.at(0).tokenId = FAKE_TOKEN_ID;
+            x.tokens.at(0).amount = 1_000_000_000n;
+          }),
+        ),
       )
       .from(alice.utxos)
       .sendChangeTo(alice.address)

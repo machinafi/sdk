@@ -28,13 +28,13 @@
   val SAFE_MIN_BOX_VALUE = 1000000L;
 
   val owner = SELF.R4[SigmaProp].get;
-  val price = SELF.R5[Long].get;          // price in nanoergs
-  val isBuyAction = SELF.R6[Boolean].get; // true if this is a buy order, false if sell order
 
   val childBoxIndex = getVar[Int](0);
   val isTrading = childBoxIndex.isDefined;
 
   if (isTrading) {
+    val price = SELF.R5[Long].get;          // price in nanoergs
+    val isBuyAction = SELF.R6[Boolean].get; // true if this is a buy order, false if sell order
     val childBox = OUTPUTS(childBoxIndex.get);
 
     val selfToken = SELF.tokens.getOrElse(T, EMPTY_TOKEN);
@@ -42,7 +42,13 @@
     val selfTokenAmount = selfToken._2;
     val childTokenAmount = childToken._2;
 
-    val isPartial = if (isBuyAction) { childTokenAmount > 0L } else { childBox.value >= SAFE_MIN_BOX_VALUE };
+    val isPartial = if (isBuyAction) {
+      childTokenAmount > 0L                   // tokens left to be bought
+    } else {
+      childBox.value > SAFE_MIN_BOX_VALUE &&  // enough nanoergs to safely recreate the order box
+      childBox.value >= price                 // enough nanoergs to pay at least one token
+    };
+
     val validRecreation = if (isPartial) {
       // =============================== //
       // Partially filling               //
@@ -62,7 +68,8 @@
       // =============================== //
                                                             // should be true if:
       childBox.propositionBytes == owner.propBytes &&       // 1. funds are sent to the owner
-      childBox.R4[Coll[Byte]].get == SELF.id                // 2. bind the child to the parent box
+      childToken._1 == TOKEN_ID &&                          // 2. preserve token ID, if any
+      childBox.R4[Coll[Byte]].get == SELF.id                // 3. bind the child to the parent box
     }
 
     val validExchange = if (isBuyAction) {

@@ -135,7 +135,7 @@ describe("LimitOrder", () => {
           base: { tokenId: "ERG", amount: SAFE_MIN_BOX_VALUE },
           quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
         },
-        prices: { buy: 5n, sell: 10n },
+        prices: { bid: 5n, ask: 10n },
       })
         .setCreationHeight(1)
         .build();

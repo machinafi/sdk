@@ -2,7 +2,7 @@ import type { Box } from "@fleet-sdk/common";
 import { first } from "@fleet-sdk/common";
 import { OutputBuilder, SAFE_MIN_BOX_VALUE, type R4ToR5Registers } from "@fleet-sdk/core";
 import { MockChain, mockUTxO } from "@fleet-sdk/mock-chain";
-import { SGroupElement, SLong, SSigmaProp } from "@fleet-sdk/serializer";
+import { SConstant, SGroupElement, SLong, SSigmaProp } from "@fleet-sdk/serializer";
 import { describe, expect, it } from "vitest";
 
 import { GridOrder } from "../grid-order";
@@ -15,7 +15,7 @@ const owner = chain.newParty("Owner");
 function makeE2TOrder(
   baseAmount: bigint,
   quoteAmount: bigint,
-  prices = { buy: 5n, sell: 10n },
+  prices = { bid: 5n, ask: 10n },
 ): GridOrder {
   const candidate = GridOrder.create({
     owner: owner.address,
@@ -34,7 +34,7 @@ function makeE2TOrder(
 function makeT2TOrder(
   baseAmount: bigint,
   quoteAmount: bigint,
-  prices = { buy: 5n, sell: 10n },
+  prices = { bid: 5n, ask: 10n },
 ): GridOrder {
   const candidate = GridOrder.create({
     owner: owner.address,
@@ -53,9 +53,9 @@ function makeT2TOrder(
 describe("GridOrder", () => {
   describe("constructor", () => {
     it("parses an E2T order", () => {
-      const order = makeE2TOrder(ONE_ERG, 100n, { buy: 5n, sell: 10n });
-      expect(order.price.buy).toBe(5n);
-      expect(order.price.sell).toBe(10n);
+      const order = makeE2TOrder(ONE_ERG, 100n, { bid: 5n, ask: 10n });
+      expect(order.price.buy).toBe(10n);
+      expect(order.price.sell).toBe(5n);
       expect(order.assets.base.tokenId).toBe("ERG");
       expect(order.assets.base.amount).toBe(ONE_ERG);
       expect(order.assets.quote.tokenId).toBe(SIGUSD_TOKEN_ID);
@@ -64,9 +64,9 @@ describe("GridOrder", () => {
     });
 
     it("parses a T2T order", () => {
-      const order = makeT2TOrder(200n, 100n, { buy: 5n, sell: 10n });
-      expect(order.price.buy).toBe(5n);
-      expect(order.price.sell).toBe(10n);
+      const order = makeT2TOrder(200n, 100n, { bid: 5n, ask: 10n });
+      expect(order.price.buy).toBe(10n);
+      expect(order.price.sell).toBe(5n);
       expect(order.assets.base.tokenId).toBe(SIGUSD_TOKEN_ID);
       expect(order.assets.base.amount).toBe(200n);
       expect(order.assets.quote.tokenId).toBe(RSN_TOKEN_ID);
@@ -104,7 +104,7 @@ describe("GridOrder", () => {
           base: { tokenId: "ERG", amount: SAFE_MIN_BOX_VALUE },
           quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
         },
-        prices: { buy: 5n, sell: 10n },
+        prices: { bid: 5n, ask: 10n },
       })
         .setCreationHeight(1)
         .build().ergoTree;
@@ -130,7 +130,7 @@ describe("GridOrder", () => {
           base: { tokenId: "ERG", amount: SAFE_MIN_BOX_VALUE },
           quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
         },
-        prices: { buy: 5n, sell: 10n },
+        prices: { bid: 5n, ask: 10n },
       })
         .setCreationHeight(1)
         .build();
@@ -151,7 +151,7 @@ describe("GridOrder", () => {
           base: { tokenId: SIGUSD_TOKEN_ID, amount: 200n },
           quote: { tokenId: RSN_TOKEN_ID, amount: 100n },
         },
-        prices: { buy: 5n, sell: 10n },
+        prices: { bid: 5n, ask: 10n },
       })
         .setCreationHeight(1)
         .build();
@@ -168,7 +168,7 @@ describe("GridOrder", () => {
           base: { tokenId: SIGUSD_TOKEN_ID, amount: 200n },
           quote: { tokenId: RSN_TOKEN_ID, amount: 100n },
         },
-        prices: { buy: 5n, sell: 10n },
+        prices: { bid: 5n, ask: 10n },
       })
         .setCreationHeight(1)
         .build();
@@ -235,18 +235,18 @@ describe("GridOrder", () => {
 
     it("throws when payout would exceed available base ERG (E2T)", () => {
       // base = 100n, sell price = 10n → max sellable = 10 tokens (10 * 10 = 100)
-      const order = makeE2TOrder(100n, 0n, { buy: 5n, sell: 10n });
+      const order = makeE2TOrder(100n, 0n, { bid: 10n, ask: 10n });
       expect(() => order.sell(11n)).toThrow("Insufficient base amount to cover the payout");
     });
 
     it("throws when payout would exceed available base tokens (T2T)", () => {
       // base = 100n sigusd, sell price = 10n → max sellable = 10 rsn tokens (10 * 10 = 100)
-      const order = makeT2TOrder(100n, 0n, { buy: 5n, sell: 10n });
+      const order = makeT2TOrder(100n, 0n, { bid: 10n, ask: 10n });
       expect(() => order.sell(11n)).toThrow("Insufficient base amount to cover the payout");
     });
 
     it("returns a plugin for the maximum payable amount (E2T)", () => {
-      const order = makeE2TOrder(100n, 0n, { buy: 5n, sell: 10n });
+      const order = makeE2TOrder(100n, 0n, { bid: 10n, ask: 10n });
       expect(order.sell(10n)).toBeTypeOf("function");
     });
 
@@ -280,7 +280,7 @@ describe("GridOrder", () => {
             base: { tokenId: "ERG", amount: ONE_ERG },
             quote: { tokenId: "ERG", amount: 100n },
           },
-          prices: { buy: 5n, sell: 10n },
+          prices: { bid: 5n, ask: 10n },
         }),
       ).toThrow("Quote asset cannot be ERG");
     });
@@ -293,12 +293,12 @@ describe("GridOrder", () => {
             base: { tokenId: "ERG", amount: 0n },
             quote: { tokenId: SIGUSD_TOKEN_ID, amount: 0n },
           },
-          prices: { buy: 5n, sell: 10n },
+          prices: { bid: 5n, ask: 10n },
         }),
       ).toThrow("At least one of base or quote assets must be specified");
     });
 
-    it("throws when buy price is zero", () => {
+    it("throws when ask price is zero", () => {
       expect(() =>
         GridOrder.create({
           owner: owner.address,
@@ -306,12 +306,12 @@ describe("GridOrder", () => {
             base: { tokenId: "ERG", amount: ONE_ERG },
             quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
           },
-          prices: { buy: 0n, sell: 10n },
+          prices: { bid: 5n, ask: 0n },
         }),
-      ).toThrow("Prices must be specified for both buy and sell");
+      ).toThrow("Prices must be specified for both bid and ask");
     });
 
-    it("throws when sell price is zero", () => {
+    it("throws when bid price is zero", () => {
       expect(() =>
         GridOrder.create({
           owner: owner.address,
@@ -319,20 +319,39 @@ describe("GridOrder", () => {
             base: { tokenId: "ERG", amount: ONE_ERG },
             quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
           },
-          prices: { buy: 5n, sell: 0n },
+          prices: { bid: 0n, ask: 5n },
         }),
-      ).toThrow("Prices must be specified for both buy and sell");
+      ).toThrow("Prices must be specified for both bid and ask");
+    });
+
+    it("throws when bid price is higher than ask price", () => {
+      // takers could buy low and sell high in a loop, draining the order
+      expect(() =>
+        GridOrder.create({
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: ONE_ERG },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: 10n, ask: 5n },
+        }),
+      ).toThrow("Bid price must be lower than or equal to the ask price");
+    });
+
+    it("allows equal bid and ask prices", () => {
+      const order = makeE2TOrder(ONE_ERG, 100n, { bid: 7n, ask: 7n });
+      expect(order.price).toEqual({ buy: 7n, sell: 7n });
     });
 
     it("creates an E2T order when base is ERG", () => {
-      const order = makeE2TOrder(ONE_ERG, 100n, { buy: 5n, sell: 10n });
+      const order = makeE2TOrder(ONE_ERG, 100n, { bid: 5n, ask: 10n });
       expect(order.contract.type).toBe("E2T");
       expect(order.assets.base.tokenId).toBe("ERG");
       expect(order.assets.quote.tokenId).toBe(SIGUSD_TOKEN_ID);
     });
 
     it("creates a T2T order when base is a token", () => {
-      const order = makeT2TOrder(200n, 100n, { buy: 5n, sell: 10n });
+      const order = makeT2TOrder(200n, 100n, { bid: 5n, ask: 10n });
       expect(order.contract.type).toBe("T2T");
       expect(order.assets.base.tokenId).toBe(SIGUSD_TOKEN_ID);
       expect(order.assets.quote.tokenId).toBe(RSN_TOKEN_ID);
@@ -345,7 +364,7 @@ describe("GridOrder", () => {
           base: { tokenId: "ERG", amount: 0n },
           quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
         },
-        prices: { buy: 5n, sell: 10n },
+        prices: { bid: 5n, ask: 10n },
       })
         .setCreationHeight(1)
         .build();
@@ -354,10 +373,12 @@ describe("GridOrder", () => {
       expect(order.assets.base.amount).toBeGreaterThan(0n);
     });
 
-    it("stores prices correctly in registers", () => {
-      const order = makeE2TOrder(ONE_ERG, 100n, { buy: 7n, sell: 13n });
-      expect(order.price.buy).toBe(7n);
-      expect(order.price.sell).toBe(13n);
+    it("stores owner prices as taker prices in registers", () => {
+      // takers buy at the owner's ask and sell at the owner's bid
+      const order = makeE2TOrder(ONE_ERG, 100n, { bid: 7n, ask: 13n });
+      expect(order.price.buy).toBe(13n);
+      expect(order.price.sell).toBe(7n);
+      expect(SConstant.from(order.box.additionalRegisters.R5).data).toEqual([13n, 7n]);
     });
   });
 });

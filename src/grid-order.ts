@@ -26,7 +26,13 @@ import {
 
 import { OrderContract } from "./order-contract";
 import { validateToken } from "./tokens";
-import type { ActionHandler, BuySellOrder, ExchangeableAssets, PriceRange } from "./types";
+import type {
+  ActionHandler,
+  BidAskPrices,
+  BuySellOrder,
+  ExchangeableAssets,
+  PriceRange,
+} from "./types";
 
 const CONTRACTS = {
   E2T: new OrderContract(
@@ -187,8 +193,10 @@ export class GridOrder implements BuySellOrder<PriceRange> {
     if (assets.quote.tokenId === "ERG") throw Error("Quote asset cannot be ERG");
     if (!assets?.base.amount && !assets?.quote.amount)
       throw Error("At least one of base or quote assets must be specified");
-    if (!options.prices.buy || !options.prices.sell)
-      throw Error("Prices must be specified for both buy and sell");
+    if (!options.prices.bid || !options.prices.ask)
+      throw Error("Prices must be specified for both bid and ask");
+    if (options.prices.bid > options.prices.ask)
+      throw Error("Bid price must be lower than or equal to the ask price");
 
     let builder: OutputBuilder;
     if (assets.base.tokenId === "ERG") {
@@ -206,7 +214,8 @@ export class GridOrder implements BuySellOrder<PriceRange> {
 
     return builder.setAdditionalRegisters({
       R4: SSigmaProp(SGroupElement(first(options.owner.getPublicKeys()))),
-      R5: SColl(SLong, [options.prices.buy, options.prices.sell]),
+      // contract prices are from the taker's side: takers buy at the ask and sell at the bid
+      R5: SColl(SLong, [options.prices.ask, options.prices.bid]),
     });
   }
 }
@@ -214,5 +223,5 @@ export class GridOrder implements BuySellOrder<PriceRange> {
 export interface GridOrderCreationParams {
   owner: ErgoAddress;
   assets: ExchangeableAssets;
-  prices: PriceRange;
+  prices: BidAskPrices;
 }

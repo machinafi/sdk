@@ -42,9 +42,26 @@ export interface SellOrder<T = bigint> extends Order<T> {
 
 export interface BuySellOrder<T = bigint> extends BuyOrder<T>, SellOrder<T> {}
 
+/**
+ * Grid order prices, from the taker's side, as used when filling an order.
+ */
 export interface PriceRange {
+  /** Price takers pay per quote token unit when buying from the order. */
   buy: bigint;
+  /** Price takers receive per quote token unit when selling to the order. */
   sell: bigint;
+}
+
+/**
+ * Grid order prices, from the owner's side, as used when creating an order.
+ * `bid` must be lower than or equal to `ask`, otherwise takers can buy and sell
+ * back in a loop to drain the order.
+ */
+export interface BidAskPrices {
+  /** Price the owner buys quote tokens at, i.e. what takers receive when selling. */
+  bid: bigint;
+  /** Price the owner sells quote tokens at, i.e. what takers pay when buying. */
+  ask: bigint;
 }
 
 /**

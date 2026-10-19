@@ -51,8 +51,15 @@ export class GridOrder implements BuySellOrder<PriceRange> {
   #assets: ExchangeableAssets;
   #contract: OrderContract;
 
-  constructor(box: Box<Amount, R4ToR5Registers> | BoxCandidate<Amount, R4ToR5Registers>) {
-    if (CONTRACTS.E2T.validate(box.ergoTree)) {
+  constructor(
+    box: Box<Amount, R4ToR5Registers> | BoxCandidate<Amount, R4ToR5Registers>,
+    contract?: OrderContract,
+  ) {
+    if (contract) {
+      if (!contract.validate(box.ergoTree))
+        throw Error("The box does not match the provided contract");
+      this.#contract = contract;
+    } else if (CONTRACTS.E2T.validate(box.ergoTree)) {
       this.#contract = CONTRACTS.E2T;
     } else if (CONTRACTS.T2T.validate(box.ergoTree)) {
       this.#contract = CONTRACTS.T2T;
@@ -189,7 +196,7 @@ export class GridOrder implements BuySellOrder<PriceRange> {
     return ({ addInputs }) => addInputs(this.#box);
   }
 
-  static create(options: GridOrderCreationParams): OutputBuilder {
+  static create(options: GridOrderCreationParams, contract?: OrderContract): OutputBuilder {
     const assets = options.assets;
     if (assets.quote.tokenId === "ERG") throw Error("Quote asset cannot be ERG");
     if (assets.base.tokenId === assets.quote.tokenId)
@@ -203,20 +210,23 @@ export class GridOrder implements BuySellOrder<PriceRange> {
     if (options.prices.bid > options.prices.ask)
       throw Error("Bid price must be lower than or equal to the ask price");
 
+    const isE2T = assets.base.tokenId === "ERG";
+    if (contract && (contract.type === "E2T") !== isE2T)
+      throw Error(`Base asset does not match the ${contract.type} contract`);
+
     let builder: OutputBuilder;
-    if (assets.base.tokenId === "ERG") {
-      const contract = CONTRACTS.E2T.new(assets.quote.tokenId);
+    if (isE2T) {
+      const tree = (contract ?? CONTRACTS.E2T).new(assets.quote.tokenId);
       const baseAmount = assets.base.amount || estimateMinBoxValue();
 
-      builder = new OutputBuilder(baseAmount, contract).addTokens(assets.quote);
+      builder = new OutputBuilder(baseAmount, tree).addTokens(assets.quote);
     } else {
       // the contract requires at least one base token unit at index 0, otherwise the
       // quote token takes its place and the order trades the quote token against itself
       if (!assets.base.amount) throw Error("Base amount must be specified for T2T orders");
 
-      const contract = CONTRACTS.T2T.new(assets.quote.tokenId);
-
-      builder = new OutputBuilder(estimateMinBoxValue(), contract)
+      const tree = (contract ?? CONTRACTS.T2T).new(assets.quote.tokenId);
+      builder = new OutputBuilder(estimateMinBoxValue(), tree)
         .addTokens(assets.base)
         .addTokens(assets.quote);
     }

@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { GridOrder } from "../grid-order";
 import { LimitOrder } from "../limit-order";
+import { OrderContract } from "../order-contract";
 import { SIGUSD_TOKEN_ID, RSN_TOKEN_ID, FAKE_TOKEN_ID, ONE_ERG } from "./utils";
 
 const chain = new MockChain();
@@ -95,6 +96,22 @@ describe("GridOrder", () => {
 
       const box = mockUTxO(limitCandidate) as Box<bigint, R4ToR5Registers>;
       expect(() => new GridOrder(box)).toThrow("Invalid Grid Order contract");
+    });
+
+    it("uses the provided contract when it matches the box", () => {
+      const { box, contract } = makeE2TOrder(ONE_ERG, 100n);
+      const custom = new OrderContract(contract.proposition, "E2T");
+
+      const order = new GridOrder(box, custom);
+      expect(order.contract).toBe(custom);
+      expect(order.assets.quote.tokenId).toBe(SIGUSD_TOKEN_ID);
+    });
+
+    it("throws when the provided contract does not match the box", () => {
+      const { box } = makeE2TOrder(ONE_ERG, 100n);
+      const t2t = makeT2TOrder(200n, 100n).contract;
+
+      expect(() => new GridOrder(box, t2t)).toThrow("The box does not match the provided contract");
     });
 
     it("throws for an invalid price register (non-SColl[SLong])", () => {
@@ -482,6 +499,76 @@ describe("GridOrder", () => {
       expect(order.contract.type).toBe("T2T");
       expect(order.assets.base.tokenId).toBe(SIGUSD_TOKEN_ID);
       expect(order.assets.quote.tokenId).toBe(RSN_TOKEN_ID);
+    });
+
+    it("creates an E2T order using a custom contract", () => {
+      const e2t = makeE2TOrder(ONE_ERG, 100n).contract;
+      const custom = new OrderContract(e2t.proposition, "E2T");
+      const candidate = GridOrder.create(
+        {
+          owner: owner.address,
+          assets: {
+            base: { tokenId: "ERG", amount: ONE_ERG },
+            quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        },
+        custom,
+      );
+
+      expect(candidate.ergoTree).toBe(custom.new(SIGUSD_TOKEN_ID));
+    });
+
+    it("creates a T2T order using a custom contract", () => {
+      const t2t = makeT2TOrder(200n, 100n).contract;
+      const custom = new OrderContract(t2t.proposition, "T2T");
+      const candidate = GridOrder.create(
+        {
+          owner: owner.address,
+          assets: {
+            base: { tokenId: SIGUSD_TOKEN_ID, amount: 200n },
+            quote: { tokenId: RSN_TOKEN_ID, amount: 100n },
+          },
+          prices: { bid: 5n, ask: 10n },
+        },
+        custom,
+      );
+
+      expect(candidate.ergoTree).toBe(custom.new(RSN_TOKEN_ID));
+    });
+
+    it("throws when a custom E2T contract is provided and base is not ERG", () => {
+      const e2t = makeE2TOrder(ONE_ERG, 100n).contract;
+      expect(() =>
+        GridOrder.create(
+          {
+            owner: owner.address,
+            assets: {
+              base: { tokenId: SIGUSD_TOKEN_ID, amount: 200n },
+              quote: { tokenId: RSN_TOKEN_ID, amount: 100n },
+            },
+            prices: { bid: 5n, ask: 10n },
+          },
+          e2t,
+        ),
+      ).toThrow("Base asset does not match the E2T contract");
+    });
+
+    it("throws when a custom T2T contract is provided and base is ERG", () => {
+      const t2t = makeT2TOrder(200n, 100n).contract;
+      expect(() =>
+        GridOrder.create(
+          {
+            owner: owner.address,
+            assets: {
+              base: { tokenId: "ERG", amount: ONE_ERG },
+              quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+            },
+            prices: { bid: 5n, ask: 10n },
+          },
+          t2t,
+        ),
+      ).toThrow("Base asset does not match the T2T contract");
     });
 
     it("uses estimateMinBoxValue for E2T when no base amount provided", () => {

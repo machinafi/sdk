@@ -543,14 +543,14 @@ describe("Limit order | erg <-> token", () => {
   it("Should allow operations in the child orders", () => {
     // arrange
     const price = 10n;
-    const fatherOrder = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
+    const parentOrder = mockLimitOrder("buy", { owner: bob, assets: { quote: 100n }, price });
 
-    contract.addUTxOs(fatherOrder.box);
+    contract.addUTxOs(parentOrder.box);
     alice.addBalance({ nanoergs: ONE_ERG, tokens: [] });
     bob.addBalance({ nanoergs: ONE_ERG, tokens: [] });
 
     const fatherTx = new TransactionBuilder(chain.height)
-      .extend(fatherOrder.buy(10n))
+      .extend(parentOrder.buy(10n))
       .from(alice.utxos)
       .sendChangeTo(alice.address)
       .build();
@@ -561,6 +561,7 @@ describe("Limit order | erg <-> token", () => {
     // assert another buy on the child order
     const childOrder1 = new LimitOrder(
       fatherTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR6Registers>,
+      parentOrder.contract,
     );
     const childBuyTx = new TransactionBuilder(chain.height)
       .extend(childOrder1.buy(10n))
@@ -573,6 +574,7 @@ describe("Limit order | erg <-> token", () => {
     // assert close
     const childOrder2 = new LimitOrder(
       childBuyTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR6Registers>,
+      parentOrder.contract,
     );
     const childCloseTx = new TransactionBuilder(chain.height)
       .extend(childOrder2.close())

@@ -5,7 +5,7 @@ import { type KeyedMockChainParty, mockUTxO } from "@fleet-sdk/mock-chain";
 
 import { GridOrder } from "../grid-order";
 import { LimitOrder, type LimitOrderType } from "../limit-order";
-import { OrderContract, QUOTE_TOKEN_ID_PLACEHOLDER } from "../order-contract";
+import { OrderContract } from "../order-contract";
 import type { BidAskPrices } from "../types";
 
 type Token = TokenAmount<bigint>;
@@ -37,7 +37,7 @@ export const fakeToken = (amount: bigint): Token => ({ tokenId: FAKE_TOKEN_ID, a
 function compileScriptIfRequired(script: string): string | undefined {
   if (process.env.RECOMPILE !== "true") return undefined;
 
-  const tree = compile(script).toHex();
+  const tree = compile(script, { version: 1 }).toHex();
 
   console.info("Recompiled script:");
   console.info(tree);
@@ -47,29 +47,32 @@ function compileScriptIfRequired(script: string): string | undefined {
 }
 
 export function createGridOrderMocker(script: string, baseId: string, quoteId: string) {
-  const newTree = compileScriptIfRequired(script)?.replace(QUOTE_TOKEN_ID_PLACEHOLDER, quoteId);
+  const newTree = compileScriptIfRequired(script);
+  const newContract = newTree
+    ? new OrderContract(newTree, baseId === "ERG" ? "E2T" : "T2T")
+    : undefined;
 
-  return (p: GridOrderParams): Box<bigint, R4ToR5Registers> => {
-    const candidate = GridOrder.create({
-      assets: !p.assets
-        ? {
-            base: { tokenId: baseId, amount: SAFE_MIN_BOX_VALUE },
-            quote: { tokenId: quoteId, amount: 0n },
-          }
-        : {
-            base: { tokenId: baseId, amount: p.assets?.base ?? 0n },
-            quote: { tokenId: quoteId, amount: p.assets?.quote ?? 0n },
-          },
-      prices: p.prices ?? { bid: 1n, ask: 1n },
-      owner: p.owner.address,
-    })
+  return (p: GridOrderParams): GridOrder => {
+    const candidate = GridOrder.create(
+      {
+        assets: !p.assets
+          ? {
+              base: { tokenId: baseId, amount: SAFE_MIN_BOX_VALUE },
+              quote: { tokenId: quoteId, amount: 0n },
+            }
+          : {
+              base: { tokenId: baseId, amount: p.assets?.base ?? 0n },
+              quote: { tokenId: quoteId, amount: p.assets?.quote ?? 0n },
+            },
+        prices: p.prices ?? { bid: 1n, ask: 1n },
+        owner: p.owner.address,
+      },
+      newContract,
+    )
       .setCreationHeight(1)
       .build();
 
-    return mockUTxO({
-      ...candidate,
-      ergoTree: newTree ?? candidate.ergoTree,
-    }) as Box<bigint, R4ToR5Registers>;
+    return new GridOrder(mockUTxO(candidate) as Box<bigint, R4ToR5Registers>, newContract);
   };
 }
 

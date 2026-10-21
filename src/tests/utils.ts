@@ -37,7 +37,7 @@ export const fakeToken = (amount: bigint): Token => ({ tokenId: FAKE_TOKEN_ID, a
 function compileScriptIfRequired(script: string): string | undefined {
   if (process.env.RECOMPILE !== "true") return undefined;
 
-  const tree = compile(script).toHex();
+  const tree = compile(script, { version: 1 }).toHex();
 
   console.info("Recompiled script:");
   console.info(tree);

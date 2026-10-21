@@ -2,7 +2,7 @@ import type { Box } from "@fleet-sdk/common";
 import { first } from "@fleet-sdk/common";
 import { OutputBuilder, SAFE_MIN_BOX_VALUE, type R4ToR5Registers } from "@fleet-sdk/core";
 import { MockChain, mockUTxO } from "@fleet-sdk/mock-chain";
-import { SConstant, SGroupElement, SLong, SSigmaProp } from "@fleet-sdk/serializer";
+import { SColl, SConstant, SGroupElement, SLong, SSigmaProp } from "@fleet-sdk/serializer";
 import { describe, expect, it } from "vitest";
 
 import { GridOrder } from "../grid-order";
@@ -138,6 +138,30 @@ describe("GridOrder", () => {
 
       const box = mockUTxO(candidate) as Box<bigint, R4ToR5Registers>;
       expect(() => new GridOrder(box)).toThrow("Invalid price register");
+    });
+
+    it("parses price register without initial amounts", () => {
+      const candidate = GridOrder.create({
+        owner: owner.address,
+        assets: {
+          base: { tokenId: "ERG", amount: SAFE_MIN_BOX_VALUE },
+          quote: { tokenId: SIGUSD_TOKEN_ID, amount: 100n },
+        },
+        prices: { bid: 5n, ask: 10n },
+      })
+        .setAdditionalRegisters({
+          R4: SSigmaProp(SGroupElement(first(owner.address.getPublicKeys()))),
+          R5: SColl(SLong, [10n, 5n]),
+        })
+        .setCreationHeight(1)
+        .build();
+
+      const order = new GridOrder(mockUTxO(candidate) as Box<bigint, R4ToR5Registers>);
+      expect(order.price).toEqual({ buy: 10n, sell: 5n });
+      expect(order.initialAmounts).toBeUndefined();
+      expect(order.delta).toBeUndefined();
+      expect(order.volume).toBeUndefined();
+      expect(order.realizedProfit).toBeUndefined();
     });
 
     it("throws for an invalid quote token", () => {
@@ -312,10 +336,7 @@ describe("GridOrder", () => {
   it("rejects a box whose contract has tampered constants", () => {
     const box = makeE2TOrder(ONE_ERG, 100n).box;
     // swap the BUY and SELL price index constants: same length and template, inverted prices
-    const ergoTree = box.ergoTree.replace(
-      "0500040004000500040005000402",
-      "0500040004000500040205000400",
-    );
+    const ergoTree = box.ergoTree.replace("0500040004000500040005000402", "04080500040205000400");
 
     expect(ergoTree).not.toBe(box.ergoTree);
     expect(() => new GridOrder({ ...box, ergoTree })).toThrow("Invalid Grid Order contract");
@@ -571,7 +592,7 @@ describe("GridOrder", () => {
       ).toThrow("Base asset does not match the T2T contract");
     });
 
-    it("uses estimateMinBoxValue for E2T when no base amount provided", () => {
+    it("uses SAFE_MIN_BOX_VALUE for E2T when no base amount provided", () => {
       const candidate = GridOrder.create({
         owner: owner.address,
         assets: {
@@ -584,7 +605,7 @@ describe("GridOrder", () => {
         .build();
 
       const order = new GridOrder(mockUTxO(candidate) as Box<bigint, R4ToR5Registers>);
-      expect(order.assets.base.amount).toBeGreaterThan(0n);
+      expect(order.assets.base.amount).toBe(SAFE_MIN_BOX_VALUE);
     });
 
     it("stores owner prices as taker prices in registers", () => {
@@ -592,7 +613,80 @@ describe("GridOrder", () => {
       const order = makeE2TOrder(ONE_ERG, 100n, { bid: 7n, ask: 13n });
       expect(order.price.buy).toBe(13n);
       expect(order.price.sell).toBe(7n);
-      expect(SConstant.from(order.box.additionalRegisters.R5).data).toEqual([13n, 7n]);
+      expect(SConstant.from(order.box.additionalRegisters.R5).data).toEqual([
+        13n,
+        7n,
+        ONE_ERG,
+        100n,
+      ]);
+    });
+
+    it("stores initial amounts in registers", () => {
+      const e2t = makeE2TOrder(ONE_ERG, 100n);
+      expect(e2t.initialAmounts).toEqual({ base: ONE_ERG, quote: 100n });
+      expect(e2t.delta).toEqual({ base: 0n, quote: 0n });
+
+      const t2t = makeT2TOrder(200n, 0n);
+      expect(t2t.initialAmounts).toEqual({ base: 200n, quote: 0n });
+      expect(t2t.delta).toEqual({ base: 0n, quote: 0n });
+    });
+
+    it("stores the default base amount as initial amount for E2T orders", () => {
+      const order = makeE2TOrder(0n, 100n);
+      expect(order.assets.base.amount).toBe(SAFE_MIN_BOX_VALUE);
+      expect(order.initialAmounts).toEqual({ base: SAFE_MIN_BOX_VALUE, quote: 100n });
+      expect(order.delta).toEqual({ base: 0n, quote: 0n });
+    });
+  });
+
+  describe("performance", () => {
+    /**
+     * Returns the order as it would be after some trades: same registers, so same prices and
+     * initial amounts, but holding the given base and quote balances.
+     */
+    function afterTrades(order: GridOrder, balances: { base: bigint; quote: bigint }): GridOrder {
+      const { box, assets } = order;
+      const quote = { tokenId: assets.quote.tokenId, amount: balances.quote };
+
+      const tradedBox =
+        order.contract.type === "E2T"
+          ? { ...box, value: balances.base, assets: [quote] } // base is ERG, held as the box value
+          : { ...box, assets: [{ tokenId: assets.base.tokenId, amount: balances.base }, quote] };
+
+      return new GridOrder(mockUTxO(tradedBox) as Box<bigint, R4ToR5Registers>);
+    }
+
+    it("has no volume or profit right after creation", () => {
+      const order = makeE2TOrder(ONE_ERG, 100n, { bid: 5n, ask: 10n });
+      expect(order.volume).toEqual({ buy: 0n, sell: 0n });
+      expect(order.delta).toEqual({ base: 0n, quote: 0n });
+      expect(order.realizedProfit).toBe(0n);
+    });
+
+    it("derives volume and profits when takers bought more than sold", () => {
+      // takers bought 15 at 10 and sold 5 at 5: +150 - 25 base, -15 + 5 quote
+      const order = afterTrades(makeE2TOrder(ONE_ERG, 100n), { base: ONE_ERG + 125n, quote: 90n });
+      expect(order.volume).toEqual({ buy: 15n, sell: 5n });
+      expect(order.delta).toEqual({ base: 125n, quote: -10n });
+      expect(order.realizedProfit).toBe(25n); // 5 round trips * 5 spread
+    });
+
+    it("derives volume and profits when takers sold more than bought", () => {
+      // takers bought 2 at 10 and sold 8 at 5: +20 - 40 base, -2 + 8 quote
+      const order = afterTrades(makeT2TOrder(200n, 100n), { base: 180n, quote: 106n });
+      expect(order.volume).toEqual({ buy: 2n, sell: 8n });
+      expect(order.delta).toEqual({ base: -20n, quote: 6n });
+      expect(order.realizedProfit).toBe(10n); // 2 round trips * 5 spread
+    });
+
+    it("can't derive volume when buy and sell prices are equal", () => {
+      const order = afterTrades(makeE2TOrder(ONE_ERG, 100n, { bid: 5n, ask: 5n }), {
+        base: ONE_ERG + 50n,
+        quote: 90n,
+      });
+      expect(order.volume).toBeUndefined();
+      expect(order.realizedProfit).toBe(0n);
+      expect(order.delta).toEqual({ base: 50n, quote: -10n });
     });
   });
 });

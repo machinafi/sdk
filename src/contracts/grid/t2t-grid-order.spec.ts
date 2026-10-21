@@ -305,6 +305,13 @@ describe("Grid order | token <-> token | auto-compound", () => {
       childBuyTx.outputs.at(0)?.toPlainObject("EIP-12") as Box<Amount, R4ToR5Registers>,
       parentOrder.contract,
     );
+
+    // initial amounts are preserved across recreations
+    expect(childOrder3.initialAmounts).toEqual(parentOrder.initialAmounts);
+    expect(childOrder3.delta).toEqual({ base: 95n, quote: -7n });
+    expect(childOrder3.volume).toEqual({ buy: 12n, sell: 5n }); // quote units takers bought and sold
+    expect(childOrder3.realizedProfit).toBe(25n); // 5 round trips * (10 - 5) spread
+
     const childCloseTx = new TransactionBuilder(chain.height)
       .extend(childOrder3.close())
       .from(bob.utxos)
@@ -465,7 +472,35 @@ describe("Grid order | token <-> token | auto-compound", () => {
       .extend(
         order.buy(10n, (output) =>
           // trying to change the prices of the order
-          output.setAdditionalRegisters({ R5: SColl(SLong, [1n, 1n]) }),
+          output.setAdditionalRegisters({
+            R5: SColl(SLong, [1n, 1n, order.initialAmounts!.base, order.initialAmounts!.quote]),
+          }),
+        ),
+      )
+      .from(alice.utxos)
+      .sendChangeTo(alice.address)
+      .build()
+      .toEIP12Object();
+
+    // act
+    expect(() => chain.execute(transaction, { signers: [alice] })).toThrow(REDUCED_TO_FALSE_ERROR);
+  });
+
+  it("Should not allow changing the initial amounts of the order", () => {
+    // arrange
+    const prices = { bid: 5n, ask: 10n };
+    const order = mockOrder({ owner: bob, assets: { base: 1n, quote: 100n }, prices });
+
+    contract.addUTxOs(order.box);
+    alice.addBalance({ nanoergs: ONE_ERG, tokens: [sigusd(100n), fakeToken(200n)] });
+
+    const transaction = new TransactionBuilder(chain.height)
+      .extend(
+        order.buy(10n, (output) =>
+          // trying to change the initial amounts of the order
+          output.setAdditionalRegisters({
+            R5: SColl(SLong, [prices.ask, prices.bid, 0n, 0n]),
+          }),
         ),
       )
       .from(alice.utxos)

@@ -278,7 +278,6 @@ export class GridOrder implements BuySellOrder<PriceRange> {
     let baseAmount = assets.base.amount;
     if (isE2T) {
       const tree = (contract ?? CONTRACTS.E2T).new(assets.quote.tokenId);
-      // the initial base amount is stored in R5, so it can't rely on a min box value estimator
       if (!baseAmount) baseAmount = SAFE_MIN_BOX_VALUE;
 
       builder = new OutputBuilder(baseAmount, tree).addTokens(assets.quote);
